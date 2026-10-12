@@ -1,17 +1,17 @@
 # Persistent mic recorder host (latency fix).
 #
-# O rec.ps1 original compila o C# (Add-Type) e sobe um pwsh a cada gravacao: ~1.2s
-# ate o microfone estar ativo, o que corta o inicio da fala. Este host compila o
-# tipo UMA vez e depois so liga/desliga a gravacao por comando via stdin.
+# The original rec.ps1 compiles the C# (Add-Type) and spawns a pwsh per
+# recording: ~1.2s until the mic is live, clipping the start of speech.
+# This host compiles the type ONCE, then just toggles recording via stdin.
 #
-# Comandos (uma linha cada, responde "ok"):
-#   start <wavPath> <levelPath>   comeca a gravar no arquivo e publica o nivel
-#   stop                          finaliza e fecha o arquivo
-#   quit                          encerra
+# Commands (one line each, replies "ok"):
+#   start <wavPath> <levelPath>   start recording to file and publish level
+#   stop                          finalize and close the file
+#   quit                          exit
 #
-# O levelPath recebe um inteiro 0..100 (pico do ultimo buffer) para o overlay.
+# levelPath receives an integer 0..100 (last buffer peak) for the overlay.
 #
-# Mesmo recorder winmm do rec.ps1 do usuario, com Start() em thread e StopAndWait().
+# Same winmm recorder as the user's rec.ps1, with Start() on a thread and StopAndWait().
 
 $src = @"
 using System;
@@ -73,7 +73,7 @@ public class WaveRecHost {
         fs.Position = 0; fs.Write(h,0,44); fs.Flush();
     }
 
-    // Publica o pico (0..100) do ultimo buffer para o overlay ler.
+    // Publish the last buffer peak (0..100) for the overlay to read.
     void PublishLevel(byte[] data) {
         if (levelPath == null) return;
         int peak = 0;

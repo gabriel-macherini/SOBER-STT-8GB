@@ -1,5 +1,5 @@
-# Gera voice-idle.ico / voice-rec.ico / voice-proc.ico (variante C: mic dentro de anel).
-# Desenha em GDI+ e monta um .ico com frames PNG em 16/20/24/32/48/64/128.
+# Build voice-idle.ico / voice-rec.ico / voice-proc.ico (variant C: mic inside a ring).
+# Draw with GDI+ and pack an .ico with PNG frames at 16/20/24/32/48/64/128.
 $ErrorActionPreference = "Stop"
 Add-Type -AssemblyName System.Drawing
 
@@ -15,8 +15,8 @@ $light = [System.Drawing.Color]::FromArgb(255, 232, 234, 237)    # #E8EAED
 $frameDir = Join-Path $env:TEMP "voice-ico-frames"
 New-Item -ItemType Directory -Force -Path $frameDir | Out-Null
 
-# Renderiza um tamanho e grava PNG; devolve o caminho do arquivo (evita o
-# PowerShell desenrolar o byte[] no retorno).
+# Render one size and save the PNG; return the file path (avoids PowerShell
+# unrolling the byte[] on return).
 function New-FrameFile([int]$size, [System.Drawing.Color]$ringColor, [string]$outPath) {
   $bmp = New-Object System.Drawing.Bitmap($size, $size, [System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
   $g = [System.Drawing.Graphics]::FromImage($bmp)
@@ -30,17 +30,17 @@ function New-FrameFile([int]$size, [System.Drawing.Color]$ringColor, [string]$ou
   $lightPen.StartCap = [System.Drawing.Drawing2D.LineCap]::Round
   $lightPen.EndCap = [System.Drawing.Drawing2D.LineCap]::Round
 
-  # corpo do mic (capsula cheia)
+  # mic body (filled capsule)
   $bx = 9.2 * $u; $by = 4.6 * $u; $bw = 5.6 * $u; $bh = 9.4 * $u; $r = $bw / 2
   $g.FillRectangle($lightBrush, [single]$bx, [single]($by + $r), [single]$bw, [single]($bh - 2 * $r))
   $g.FillEllipse($lightBrush, [single]$bx, [single]$by, [single]$bw, [single]$bw)
   $g.FillEllipse($lightBrush, [single]$bx, [single]($by + $bh - $bw), [single]$bw, [single]$bw)
 
-  # arco do suporte (metade inferior) e haste
+  # cradle arc (bottom half) and stem
   $g.DrawArc($lightPen, [single](7.4 * $u), [single](7.0 * $u), [single](9.2 * $u), [single](9.2 * $u), 0, 180)
   $g.DrawLine($lightPen, [single](12 * $u), [single](16.4 * $u), [single](12 * $u), [single](19 * $u))
 
-  # anel de estado
+  # state ring
   $g.DrawEllipse($ringPen, [single](1.7 * $u), [single](1.7 * $u), [single](20.6 * $u), [single](20.6 * $u))
 
   $g.Dispose()

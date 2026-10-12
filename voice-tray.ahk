@@ -3,16 +3,16 @@
 Persistent
 
 ; ============================================================================
-; OpenCode Voice - app de bandeja
+; OpenCode Voice - tray app
 ;
-; Enquanto este script roda, o CapsLock ganha o gesto "duplo-toque e segurar"
-; para gravar. O CapsLock continua normal (prefixo ~ = nao consome a tecla).
+; While this script runs, CapsLock gains a "double-tap and hold" gesture to
+; record. CapsLock keeps working normally (~ prefix = key passes through).
 ;
-; Fechar o app = desligar a voz e liberar VRAM/RAM (mata s1/qwen).
-; O runner (runner.mjs) e o dono do pipeline; este script o inicia ao abrir.
+; Quitting the app = voice off + VRAM/RAM freed (kills s1/qwen).
+; The runner (runner.mjs) owns the pipeline; this script starts it on launch.
 ;
-; Overlay: barras de onda no rodape, cor por fase
-;   gravando (verde) -> transcrevendo (laranja) -> normalizando (azul) -> some
+; Overlay: wave bars at the bottom, color per phase
+;   recording (green) -> transcribing (orange) -> normalizing (blue) -> hides
 ; ============================================================================
 
 PORT := 8791
@@ -22,24 +22,24 @@ ICON_IDLE := A_ScriptDir "\voice-idle.ico"
 ICON_REC := A_ScriptDir "\voice-rec.ico"
 ICON_PROC := A_ScriptDir "\voice-proc.ico"
 
-; Gesto (ms)
+; Gesture (ms)
 TAP_MAX := 400
 GAP := 800
 HOLD_MIN := 200
 
-; Overlay (barras de onda)
+; Overlay (wave bars)
 BARS := 17
 BARW := 4
 BARGAP := 5
 BARH := 30
-COL_REC := "0x3FB950"   ; verde
-COL_TRA := "0xF5A623"   ; laranja
-COL_NOR := "0x4C9AFF"   ; azul
+COL_REC := "0x3FB950"   ; green
+COL_TRA := "0xF5A623"   ; orange
+COL_NOR := "0x4C9AFF"   ; blue
 
 LOGF := A_Temp "\voice-tray.log"
 LEVELF := A_Temp "\opencode-stt.level"
 PHASEF := A_Temp "\opencode-stt.phase"
-WARMF := A_ScriptDir "\warm.state"   ; "1" = manter modelos carregados
+WARMF := A_ScriptDir "\warm.state"   ; "1" = keep models loaded
 
 global runnerPID := 0
 global warm := false
@@ -54,7 +54,7 @@ global OVL_COLOR := ""
 global OVL_TICK := 0
 global POLL_SEQ := 0
 global POLL_N := 0
-; Log de debug do gesto em %TEMP%\voice-tray.log. Desligado por padrao.
+; Gesture debug log in %TEMP%\voice-tray.log. Off by default.
 global VOICE_DEBUG := false
 
 Dbg(m) {
@@ -64,7 +64,7 @@ Dbg(m) {
     try FileAppend(Format("{1}`t{2}`n", A_TickCount, m), LOGF)
 }
 
-; ---- Estado do tray --------------------------------------------------------
+; ---- Tray state ----------------------------------------------------------
 SetState(state) {
     switch state {
         case "rec":
@@ -82,8 +82,8 @@ SetState(state) {
     }
 }
 
-; ---- Overlay (barras de onda) ----------------------------------------------
-; Parent click-through/no-activate; cada barra e uma janela filha colorida.
+; ---- Overlay (wave bars) ---------------------------------------------------
+; Parent click-through/no-activate; each bar is a colored child window.
 BuildOverlay() {
     global OVL, OVL_TEXT, OVL_BARSS, BARS, BARW, BARGAP, COL_REC
     OVL := Gui("+AlwaysOnTop -Caption +ToolWindow +E0x08000000 +E0x20")
@@ -101,13 +101,13 @@ BuildOverlay() {
     }
 }
 
-; Cantos arredondados (pilula) para a barra.
+; Rounded corners (pill) for a bar.
 ApplyPill(g, w, h) {
     r := DllCall("gdi32\CreateRoundRectRgn", "int", 0, "int", 0, "int", w + 1, "int", h + 1, "int", w, "int", w, "ptr")
     DllCall("user32\SetWindowRgn", "ptr", g.Hwnd, "ptr", r, "int", true)
 }
 
-; Cantos arredondados para o container do overlay.
+; Rounded corners for the overlay container.
 ApplyRound(g, w, h, radius) {
     r := DllCall("gdi32\CreateRoundRectRgn", "int", 0, "int", 0, "int", w + 1, "int", h + 1, "int", radius, "int", radius, "ptr")
     DllCall("user32\SetWindowRgn", "ptr", g.Hwnd, "ptr", r, "int", true)
@@ -171,7 +171,7 @@ UpdateOverlay(*) {
         } catch {
         }
     } else {
-        ; sem audio: pulsa em torno de um nivel medio, sem rolar
+        ; no audio: pulse around a mid level, no scrolling
         OVL_TICK += 1
         lvl := 45 + 35 * Abs(Sin(OVL_TICK * 0.18))
     }
@@ -179,7 +179,7 @@ UpdateOverlay(*) {
     bottom := 8 + 16 + 6 + BARH
     Loop BARS {
         i := A_Index
-        env := Sin(3.141592653589793 * i / (BARS + 1))     ; alto no centro, baixo nas pontas
+        env := Sin(3.141592653589793 * i / (BARS + 1))     ; tall in the center, short at the edges
         h := Round(BARW + env * (BARH - BARW) * (0.22 + 0.78 * lvl / 100))
         if (h < BARW)
             h := BARW
@@ -232,8 +232,8 @@ DoCancel() {
     SetState("idle")
 }
 DoPipeline() {
-    ; /stop agora retorna na hora ({started, seq}); o overlay continua
-    ; repintando enquanto as fases mudam, e o PollResult fecha no fim.
+    ; /stop returns at once ({started, seq}); the overlay keeps
+    ; repainting while phases change, and PollResult closes at the end.
     global POLL_SEQ, POLL_N
     Dbg("DoPipeline")
     resp := HttpPost("/stop", 10000)
@@ -269,7 +269,7 @@ PollResult(*) {
     }
 }
 
-; ---- Ciclo de vida ---------------------------------------------------------
+; ---- Lifecycle -------------------------------------------------------------
 StartRunner() {
     global runnerPID
     if (HttpGet("/health") != "") {
@@ -318,17 +318,18 @@ ToggleWarm(*) {
     }
 }
 
-; ---- Menu da bandeja -------------------------------------------------------
+; ---- Tray menu -------------------------------------------------------------
 A_TrayMenu.Delete()
 A_TrayMenu.Add("Manter modelos carregados", ToggleWarm)
 A_TrayMenu.Add()
 A_TrayMenu.Add("Abrir pasta", (*) => Run(A_ScriptDir))
 A_TrayMenu.Add("Sair", ExitVoice)
 
-; ---- Gesto: duplo-toque e segurar no CapsLock ------------------------------
+; ---- Gesture: double-tap and hold CapsLock ---------------------------------
+; "~" lets CapsLock pass through natively; we only observe down/up.
 ~CapsLock:: {
     global lastTapUp, armed, downTime, keyDown
-    if (keyDown)
+    if (keyDown)                          ; CapsLock auto-repeat: ignore
         return
     keyDown := true
     downTime := A_TickCount
@@ -336,7 +337,7 @@ A_TrayMenu.Add("Sair", ExitVoice)
     if (lastTapUp && (downTime - lastTapUp) <= GAP) {
         armed := true
         lastTapUp := 0
-        SetTimer(DoStart, -10)
+        SetTimer(DoStart, -10)            ; start recording on press
     }
 }
 
@@ -349,9 +350,9 @@ A_TrayMenu.Add("Sair", ExitVoice)
         armed := false
         if (held >= HOLD_MIN) {
             SetState("proc")
-            SetTimer(DoPipeline, -10)
+            SetTimer(DoPipeline, -10)     ; process + paste
         } else {
-            SetTimer(DoCancel, -10)
+            SetTimer(DoCancel, -10)       ; plain double-tap: cancel
         }
     } else {
         lastTapUp := (held <= TAP_MAX) ? A_TickCount : 0
@@ -363,7 +364,7 @@ OnExit((*) => (StopRunner(), 0))
 try FileDelete(LOGF)
 Dbg("boot")
 StartRunner()
-; Restaura o toggle persistido: o que estava ticado ao sair volta ao abrir.
+; Restore the persisted toggle: whatever was checked on exit is back on launch.
 try {
     if (FileExist(WARMF) && Trim(FileRead(WARMF)) = "1") {
         warm := true

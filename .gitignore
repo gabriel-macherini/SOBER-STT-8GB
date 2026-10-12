@@ -1,0 +1,5 @@
+# Local runtime state (toggle persistence lives here, per machine).
+warm.state
+
+# Debug leftovers.
+*.log

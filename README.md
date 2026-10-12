@@ -1,4 +1,6 @@
-# 🎙️ OpenCode Voice
+# 🎙️ SOBER-STT-8GB
+
+Push-to-talk voice dictation for Windows, tuned for an 8 GB VRAM card.
 
 ![Windows](https://img.shields.io/badge/Windows-10%2F11-0078D4?logo=windows&logoColor=white)
 ![Node](https://img.shields.io/badge/Node-22+-339933?logo=node.js&logoColor=white)

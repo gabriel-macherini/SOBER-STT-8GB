@@ -71,6 +71,27 @@ const logger = {
   },
 };
 
+// STT system prompt: canonical copy lives in prompts/stt-system-prompt.md
+// (PT + list rules); falls back to the lib default if the file is missing.
+// The leading <!-- --> doc block is stripped so it never reaches the model.
+function loadPromptFile() {
+  try {
+    const file = new URL("./prompts/stt-system-prompt.md", import.meta.url).pathname.replace(/^\//, "");
+    const stripped = fs
+      .readFileSync(file, "utf8")
+      .replace(/^<!--[\s\S]*?-->\s*/, "")
+      .replace(/\s+$/, "");
+    if (stripped.trim()) {
+      logger.log("VOICE", "Using prompts/stt-system-prompt.md", "debug");
+      return stripped;
+    }
+  } catch (e) {
+    logger.log("VOICE", `Prompt file unreadable, using lib default: ${e.message}`, "warn");
+  }
+  return stt.STT_SYSTEM_PROMPT;
+}
+const STT_PROMPT = loadPromptFile();
+
 // The pipeline reads model/mic from a kv store; standalone we keep it in memory.
 const kv = {
   store: { "stt.model": "large-v3-turbo-q5_0", "stt.mic": "", "stt.api.model": "" },
@@ -239,7 +260,7 @@ async function runPipeline(seq) {
     }
 
     writePhase("normalizing");
-    const normalized = await stt.normalizeHybrid(complete, result.text, "", stt.STT_SYSTEM_PROMPT, logger);
+    const normalized = await stt.normalizeHybrid(complete, result.text, "", STT_PROMPT, logger);
     const text = normalized?.text || result.text;
     writeLast({ raw: result.text, text, error: normalized?.error || null });
     done({ ok: true, text, pasted: pasteText(text) });

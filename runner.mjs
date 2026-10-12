@@ -83,14 +83,16 @@ function loadPromptFile() {
       .replace(/\s+$/, "");
     if (stripped.trim()) {
       logger.log("VOICE", "Using prompts/stt-system-prompt.md", "debug");
-      return stripped;
+      return { source: "file", text: stripped };
     }
   } catch (e) {
     logger.log("VOICE", `Prompt file unreadable, using lib default: ${e.message}`, "warn");
   }
-  return stt.STT_SYSTEM_PROMPT;
+  return { source: "lib", text: stt.STT_SYSTEM_PROMPT };
 }
 const STT_PROMPT = loadPromptFile();
+const PROMPT_SOURCE = STT_PROMPT.source;
+const STT_TEXT = STT_PROMPT.text;
 
 // The pipeline reads model/mic from a kv store; standalone we keep it in memory.
 const kv = {
@@ -260,9 +262,9 @@ async function runPipeline(seq) {
     }
 
     writePhase("normalizing");
-    const normalized = await stt.normalizeHybrid(complete, result.text, "", STT_PROMPT, logger);
+    const normalized = await stt.normalizeHybrid(complete, result.text, "", STT_TEXT, logger);
     const text = normalized?.text || result.text;
-    writeLast({ raw: result.text, text, error: normalized?.error || null });
+    writeLast({ raw: result.text, text, error: normalized?.error || null, prompt: PROMPT_SOURCE });
     done({ ok: true, text, pasted: pasteText(text) });
   } catch (e) {
     done({ ok: false, error: e.message });

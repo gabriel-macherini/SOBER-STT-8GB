@@ -27,7 +27,7 @@ Push-to-talk voice dictation for Windows. Double-tap and hold **CapsLock**, spea
 # 1. Requirements: Windows, Node 22+, AutoHotkey v2
 # 2. Set up the voice toolchain once (see "Setup this was built for" below)
 # 3. Run the tray app (or double-click the desktop shortcut):
-& "C:\Program Files\AutoHotkey\v2\AutoHotkey64.exe" "C:\path\to\voice-cli\voice-tray.ahk"
+& "C:\Program Files\AutoHotkey\v2\AutoHotkey64.exe" "C:\path\to\SOBER-STT-8GB\voice-tray.ahk"
 ```
 
 1. Double-tap **CapsLock** and hold the second tap.
@@ -135,7 +135,7 @@ Ditada por voz push-to-talk para Windows. Toque duas vezes no **CapsLock** e seg
 # 1. Requisitos: Windows, Node 22+, AutoHotkey v2
 # 2. Monte o toolchain de voz uma vez (seção "Setup" acima)
 # 3. Rode o app de bandeja (ou o atalho do desktop):
-& "C:\Program Files\AutoHotkey\v2\AutoHotkey64.exe" "C:\caminho\para\voice-cli\voice-tray.ahk"
+& "C:\Program Files\AutoHotkey\v2\AutoHotkey64.exe" "C:\caminho\para\SOBER-STT-8GB\voice-tray.ahk"
 ```
 
 1. Toque duas vezes no **CapsLock** e segure o segundo toque.

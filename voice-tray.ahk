@@ -400,8 +400,20 @@ ToggleAutostart(*) {
 }
 
 ; ---- Help ---------------------------------------------------------------
+; Small window (not MsgBox) so the GitHub URL is a real clickable link.
+; Private -> public keeps the same URL as long as owner/name don't change.
+global HelpGui := ""
 ShowHelp(*) {
-    MsgBox(T("help.body"), T("help.title"), "OK Iconi")
+    global HelpGui
+    try HelpGui.Destroy()
+    catch {
+    }
+    HelpGui := Gui("+AlwaysOnTop +ToolWindow", T("help.title"))
+    HelpGui.SetFont("s9", "Segoe UI")
+    HelpGui.Add("Text", "w420", T("help.body"))
+    HelpGui.Add("Link", "w420", '<a href="https://github.com/gabriel-macherini/SOBER-STT-8GB">GitHub: gabriel-macherini/SOBER-STT-8GB</a>')
+    HelpGui.Add("Button", "Default w80", "OK").OnEvent("Click", (*) => HelpGui.Destroy())
+    HelpGui.Show()
 }
 
 ; ---- Model switching (Trocar modelo) --------------------------------------

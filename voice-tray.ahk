@@ -368,12 +368,33 @@ ToggleAutostart(*) {
     }
 }
 
+; ---- Help ---------------------------------------------------------------
+ShowHelp(*) {
+    help :=
+    (
+    "SOBER-STT - ditado por voz local (sem nuvem).`n`n" .
+    "COMO USAR`n" .
+    "Toque 2x no CapsLock e segure o segundo toque, fale, solte.`n" .
+    "O texto limpo é colado onde está o cursor.`n" .
+    "Cores do overlay: verde gravando, laranja transcrevendo, azul normalizando.`n`n" .
+    "MENU`n" .
+    "- Manter modelos carregados: não descarrega a IA após 1 min parado.`n" .
+    "- Iniciar com o Windows: abre junto com o sistema.`n`n" .
+    "CONFERIR A NORMALIZAÇÃO`n" .
+    "Após ditar, abra %TEMP%\opencode-stt.last.json:`n" .
+    "raw = o que foi ouvido, text = o que foi colado,`n" .
+    'prompt = "file" significa que usou o prompts/stt-system-prompt.md instalado.'
+    )
+    MsgBox(help, "SOBER-STT - Ajuda", "OK Iconi")
+}
+
 ; ---- Tray menu -------------------------------------------------------------
 A_TrayMenu.Delete()
 A_TrayMenu.Add("Manter modelos carregados", ToggleWarm)
 A_TrayMenu.Add("Iniciar com o Windows", ToggleAutostart)
 A_TrayMenu.Add()
 A_TrayMenu.Add("Abrir pasta", (*) => Run(A_ScriptDir))
+A_TrayMenu.Add("Ajuda", ShowHelp)
 A_TrayMenu.Add("Sair", ExitVoice)
 
 ; ---- Gesture: double-tap and hold CapsLock ---------------------------------

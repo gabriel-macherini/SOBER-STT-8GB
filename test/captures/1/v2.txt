@@ -1,0 +1,5 @@
+Bom dia. Preciso que você faça o seguinte:
+1. Subir o container com Docker Compose up.
+2. Mostrar os logs do Node, porque o servidor não está respondendo.
+3. Limpar o cache e rodar o build de novo.
+Depois faz um teste no arquivo app.ts e me manda um resumo. A função tem que ser async, , com a wait no fetch. Se travar, aperta Ctrl C e depois Enter. No final, abre a pasta do navegador e confere se a API devolve o JSON certinho. Ah, o campo isActive é um boolean. Então valida isso antes do comit. Se o build passar, faz o push da brand main e me avisa aqui no chat. Ah, e se lembrar de conferir o log de erro antes de fechar o ticket.

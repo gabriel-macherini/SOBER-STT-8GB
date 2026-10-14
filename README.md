@@ -26,8 +26,9 @@ Push-to-talk voice dictation for Windows. Double-tap and hold **CapsLock**, spea
 Download `SOBER-STT-Setup-*.exe` from Releases and run it. One click:
 
 1. Pick a folder (default `%LocalAppData%\SOBER-STT-8GB`, no admin needed).
-2. Check Desktop / Start Menu icons and **Start with Windows** if you want them.
-3. The wizard shows exactly what it downloads (name + version + size, see `installer/downloads.json`) — ~4.5 GB of models and GPU binaries, skipped if already present — then leaves the app ready to dictate.
+2. Pick a language (English / Português / Français / Español) — it seeds the app's UI language.
+3. Check Desktop / Start Menu icons and **Start with Windows** if you want them.
+4. The wizard checks your GPU (NVIDIA + 6+ GB VRAM recommended; warns on old/small/absent cards) and shows exactly what it downloads (name + version + size, see `installer/downloads.json`) — ~4.5 GB of models and GPU binaries, skipped if already present — then leaves the app ready to dictate.
 
 No Node, no AutoHotkey, no repo clone needed on the target machine.
 Requires Windows 10/11 x64 and (for good speed) an NVIDIA GPU with a CUDA driver.
@@ -85,7 +86,7 @@ Gesture/overlay knobs still live at the top of `voice-tray.ahk`:
 | `COL_REC` / `COL_TRA` / `COL_NOR` | green / orange / blue | Phase colors |
 | `VOICE_DEBUG` | `false` | Gesture log in `%TEMP%\voice-tray.log` |
 
-Tray menu: **Manter modelos carregados** + **Iniciar com o Windows** (persisted in `%APPDATA%\SOBER-STT-8GB\` / `HKCU\...\Run`), **Trocar modelo**, **Abrir pasta**, **Ajuda**, **Sair**.
+Tray menu: **Manter modelos carregados** + **Iniciar com o Windows** (persisted in `%APPDATA%\SOBER-STT-8GB\` / `HKCU\...\Run`), **Trocar modelo**, **Abrir pasta**, **Ajuda**, **Sair** — plus a **Language** submenu (English / Português / Français / Español, persisted in `%APPDATA%\SOBER-STT-8GB\locale`). All three choices (warm, autostart, language) survive reboots.
 
 ### 🔀 Swapping models
 
@@ -157,7 +158,7 @@ Ditada por voz push-to-talk para Windows. Toque duas vezes no **CapsLock** e seg
 
 ### 📦 Instalação
 
-Baixe o `SOBER-STT-Setup-*.exe` em Releases e execute. Escolha a pasta, marque ícone na Área de Trabalho / Menu Iniciar e **Iniciar com o Windows** se quiser, e o assistente baixa os modelos e binários (lista com versões em `installer/downloads.json`, ~4,5 GB) e deixa pronto para ditar. Sem Node, AutoHotkey ou clone na máquina alvo.
+Baixe o `SOBER-STT-Setup-*.exe` em Releases e execute. Escolha a pasta, o idioma (English / Português / Français / Español), marque ícone na Área de Trabalho / Menu Iniciar e **Iniciar com o Windows** se quiser; o assistente checa sua GPU (NVIDIA com 6+ GB de VRAM recomendado, avisa se for antiga/fraca/ausente), baixa os modelos e binários (lista com versões em `installer/downloads.json`, ~4,5 GB) e deixa pronto para ditar. Sem Node, AutoHotkey ou clone na máquina alvo.
 
 ### 🚀 Início rápido (do código-fonte)
 
@@ -178,7 +179,7 @@ Botão direito no ícone da bandeja → **Sair** para encerrar (libera a VRAM na
 
 Para uso normal, prefira o instalador acima. Do código-fonte, monte o toolchain antes: Windows 10/11 com Node 22+ e AutoHotkey v2, mais binários + modelos no layout do `config.json` (ou sobrescreva em `config.local.json`). Aí rode o `voice-tray.ahk`, dois toques + segurar o CapsLock, falar.
 
-Menu da bandeja: **Manter modelos carregados** + **Iniciar com o Windows**, **Trocar modelo** (solte um `.gguf`/`.bin` em `models/` e selecione por função), **Abrir pasta**, **Ajuda**, **Sair**.
+Menu da bandeja: **Manter modelos carregados** + **Iniciar com o Windows**, **Trocar modelo** (solte um `.gguf`/`.bin` em `models/` e selecione por função), **Abrir pasta**, **Ajuda**, **Sair** — mais o submenu **Idioma** (English / Português / Français / Español, lembrado entre reinicializações como os outros toggles).
 
 ### 📄 Licença
 

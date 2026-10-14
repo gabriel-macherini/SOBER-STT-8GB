@@ -55,6 +55,37 @@ WARMF := STATE_DIR "\warm.state"   ; "1" = keep models loaded
 REG_RUN := "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Run"
 REG_NAME := "SOBER-STT"
 
+#Include locale.ahk
+LOCALEF := STATE_DIR "\locale"
+global ActiveLang := "en"
+
+; UI language lookup with English fallback.
+T(key) {
+    global LANG, ActiveLang
+    try {
+        if (LANG[ActiveLang].Has(key))
+            return LANG[ActiveLang][key]
+        return LANG["en"][key]
+    } catch {
+        return key
+    }
+}
+
+; Language switch from the tray menu; persists like the other toggles.
+SetLanguage(code, *) {
+    global ActiveLang, STATE_DIR, LOCALEF
+    ActiveLang := code
+    try {
+        if (!DirExist(STATE_DIR))
+            DirCreate(STATE_DIR)
+        try FileDelete(LOCALEF)
+        FileAppend(code, LOCALEF)
+    } catch {
+    }
+    BuildTrayMenu()
+    RefreshModelsMenu()
+}
+
 global runnerPID := 0
 global warm := false
 global lastTapUp := 0
@@ -83,15 +114,15 @@ SetState(state) {
     switch state {
         case "rec":
             TraySetIcon(ICON_REC)
-            A_IconTip := "OpenCode Voice - gravando (solte para processar)"
+            A_IconTip := T("tip.rec")
             ShowOverlay()
         case "proc":
             TraySetIcon(ICON_PROC)
-            A_IconTip := "OpenCode Voice - processando..."
+            A_IconTip := T("tip.proc")
             ShowOverlay()
         default:
             TraySetIcon(ICON_IDLE)
-            A_IconTip := "OpenCode Voice - pronto (duplo-toque e segure o CapsLock)"
+            A_IconTip := T("tip.ready")
             HideOverlay()
     }
 }
@@ -164,11 +195,11 @@ UpdateOverlay(*) {
         return
     }
 
-    col := COL_REC, label := "Gravando"
+    col := COL_REC, label := T("ov.rec")
     if (phase = "transcribing") {
-        col := COL_TRA, label := "Transcrevendo..."
+        col := COL_TRA, label := T("ov.tra")
     } else if (phase = "normalizing") {
-        col := COL_NOR, label := "Normalizando..."
+        col := COL_NOR, label := T("ov.nor")
     }
     OVL_TEXT.Text := label
     if (col != OVL_COLOR) {
@@ -235,7 +266,7 @@ DoStart() {
     Dbg("DoStart")
     if (HttpPost("/start") = "") {
         SetState("idle")
-        TrayTip("OpenCode Voice", "Runner nao respondeu.", 2)
+        TrayTip("OpenCode Voice", T("tip.norunner"), 2)
     } else {
         SetState("rec")
     }
@@ -258,7 +289,7 @@ DoPipeline() {
         SetTimer(PollResult, 150)
     } else {
         SetState("idle")
-        msg := InStr(resp, "no-speech") ? "Nenhuma fala detectada." : "Falha: " . resp
+        msg := InStr(resp, "no-speech") ? T("tip.nospeech") : "Falha: " . resp
         TrayTip("OpenCode Voice", msg, 2)
     }
 }
@@ -271,7 +302,7 @@ PollResult(*) {
         SetTimer(PollResult, 0)
         SetState("idle")
         if (InStr(r, '"ok":false')) {
-            msg := InStr(r, "no-speech") ? "Nenhuma fala detectada." : "Falha no processamento."
+            msg := InStr(r, "no-speech") ? T("tip.nospeech") : T("tip.failed")
             TrayTip("OpenCode Voice", msg, 2)
         }
         return
@@ -279,7 +310,7 @@ PollResult(*) {
     if (POLL_N > 1200) {
         SetTimer(PollResult, 0)
         SetState("idle")
-        TrayTip("OpenCode Voice", "Tempo esgotado no processamento.", 2)
+        TrayTip("OpenCode Voice", T("tip.timeout"), 2)
     }
 }
 
@@ -296,7 +327,7 @@ StartRunner() {
         if (HttpGet("/health") != "")
             return
     }
-    TrayTip("OpenCode Voice", "Runner nao subiu. Veja se o Node esta no PATH.", 3)
+    TrayTip("OpenCode Voice", T("tip.noserver"), 3)
 }
 
 StopRunner() {
@@ -326,11 +357,11 @@ ToggleWarm(*) {
     }
     HttpPost("/warm", 5000, warm ? '{"enabled":true}' : '{"enabled":false}')
     if (warm) {
-        A_TrayMenu.Check("Manter modelos carregados")
-        TrayTip("OpenCode Voice", "Modelos mantidos carregados.", 1)
+        A_TrayMenu.Check(T("menu.warm"))
+        TrayTip("OpenCode Voice", T("tip.warm.on"), 1)
     } else {
-        A_TrayMenu.Uncheck("Manter modelos carregados")
-        TrayTip("OpenCode Voice", "Idle kill em 1 min reativado.", 1)
+        A_TrayMenu.Uncheck(T("menu.warm"))
+        TrayTip("OpenCode Voice", T("tip.warm.off"), 1)
     }
 }
 
@@ -360,33 +391,17 @@ ToggleAutostart(*) {
     enable := !IsAutostart()
     SetAutostart(enable)
     if (enable) {
-        A_TrayMenu.Check("Iniciar com o Windows")
-        TrayTip("OpenCode Voice", "Vai iniciar junto com o Windows.", 1)
+        A_TrayMenu.Check(T("menu.autostart"))
+        TrayTip("OpenCode Voice", T("tip.auto.on"), 1)
     } else {
-        A_TrayMenu.Uncheck("Iniciar com o Windows")
-        TrayTip("OpenCode Voice", "Nao vai mais iniciar com o Windows.", 1)
+        A_TrayMenu.Uncheck(T("menu.autostart"))
+        TrayTip("OpenCode Voice", T("tip.auto.off"), 1)
     }
 }
 
 ; ---- Help ---------------------------------------------------------------
 ShowHelp(*) {
-    help :=
-    (
-    "SOBER-STT - ditado por voz local (sem nuvem).`n`n" .
-    "COMO USAR`n" .
-    "Toque 2x no CapsLock e segure o segundo toque, fale, solte.`n" .
-    "O texto limpo é colado onde está o cursor.`n" .
-    "Cores do overlay: verde gravando, laranja transcrevendo, azul normalizando.`n`n" .
-    "MENU`n" .
-    "- Manter modelos carregados: não descarrega a IA após 1 min parado.`n" .
-    "- Iniciar com o Windows: abre junto com o sistema.`n" .
-    "- Trocar modelo: usa um .gguf/.bin solto em modelos/ no lugar do padrão.`n`n" .
-    "CONFERIR A NORMALIZAÇÃO`n" .
-    "Após ditar, abra %TEMP%\opencode-stt.last.json:`n" .
-    "raw = o que foi ouvido, text = o que foi colado,`n" .
-    'prompt = "file" significa que usou o prompts/stt-system-prompt.md instalado.'
-    )
-    MsgBox(help, "SOBER-STT - Ajuda", "OK Iconi")
+    MsgBox(T("help.body"), T("help.title"), "OK Iconi")
 }
 
 ; ---- Model switching (Trocar modelo) --------------------------------------
@@ -421,9 +436,9 @@ RefreshModelsMenu() {
 AddModelItems(sub, slot, pattern) {
     global ActiveModels
     active := ActiveModels[slot]
-    sub.Add("Padrão do instalador", SwitchModel.Bind(slot, ""))
+    sub.Add(T("menu.def"), SwitchModel.Bind(slot, ""))
     if (active = "")
-        sub.Check("Padrão do instalador")
+        sub.Check(T("menu.def"))
     sub.Add()
     Loop Files pattern {
         name := A_LoopFileName
@@ -437,36 +452,56 @@ SwitchModel(slot, file, *) {
     r := HttpPost("/models", 8000, '{"slot":"' . slot . '","file":"' . file . '"}')
     if (InStr(r, '"ok":true')) {
         RefreshModelsMenu()
-        TrayTip("OpenCode Voice", file = "" ? "Modelo padrão restaurado." : "Modelo ativado: " . file, 1)
+        TrayTip("OpenCode Voice", file = "" ? T("tip.model.def") : T("tip.model.on") . file, 1)
     } else if (InStr(r, "too-big-confirm")) {
-        if (MsgBox("Este modelo tem mais de 3 GB e pode estourar a VRAM de 8 GB. Usar mesmo assim?", "SOBER-STT", "YesNo Icon!") = "Yes") {
+        if (MsgBox(T("msg.bigmodel"), "SOBER-STT", "YesNo Icon!") = "Yes") {
             r2 := HttpPost("/models", 8000, '{"slot":"' . slot . '","file":"' . file . '","confirmed":true}')
             if (InStr(r2, '"ok":true')) {
                 RefreshModelsMenu()
-                TrayTip("OpenCode Voice", "Modelo ativado: " . file, 1)
+                TrayTip("OpenCode Voice", T("tip.model.on") . file, 1)
             } else {
-                TrayTip("OpenCode Voice", "Troca recusada.", 2)
+                TrayTip("OpenCode Voice", T("tip.model.no"), 2)
             }
         }
     } else {
-        TrayTip("OpenCode Voice", "Troca recusada (arquivo inválido?).", 2)
+        TrayTip("OpenCode Voice", T("tip.model.no"), 2)
     }
 }
 
 ; ---- Tray menu -------------------------------------------------------------
-A_TrayMenu.Delete()
-A_TrayMenu.Add("Manter modelos carregados", ToggleWarm)
-A_TrayMenu.Add("Iniciar com o Windows", ToggleAutostart)
-ModelsMenu.Add("Transcrição (Parakeet)", SubParakeet)
-ModelsMenu.Add("Normalização EN (s1)", SubS1)
-ModelsMenu.Add("Normalização PT/FR (Qwen)", SubQwen)
-ModelsMenu.Add()
-ModelsMenu.Add("Abrir pasta de modelos", (*) => Run(MODELS_DIR))
-A_TrayMenu.Add("Trocar modelo", ModelsMenu)
-A_TrayMenu.Add()
-A_TrayMenu.Add("Abrir pasta", (*) => Run(A_ScriptDir))
-A_TrayMenu.Add("Ajuda", ShowHelp)
-A_TrayMenu.Add("Sair", ExitVoice)
+; Rebuilt on boot and on every language switch, so all labels follow T().
+; The warm/autostart checks are reapplied here too (persisted elsewhere).
+global LangMenu := Menu()
+
+BuildTrayMenu() {
+    global ModelsMenu, SubParakeet, SubS1, SubQwen, LangMenu, MODELS_DIR
+    global ActiveLang, warm
+    A_TrayMenu.Delete()
+    A_TrayMenu.Add(T("menu.warm"), ToggleWarm)
+    A_TrayMenu.Add(T("menu.autostart"), ToggleAutostart)
+    ModelsMenu.Delete()
+    ModelsMenu.Add(T("slot.stt"), SubParakeet)
+    ModelsMenu.Add(T("slot.s1"), SubS1)
+    ModelsMenu.Add(T("slot.qwen"), SubQwen)
+    ModelsMenu.Add()
+    ModelsMenu.Add(T("menu.modelsdir"), (*) => Run(MODELS_DIR))
+    A_TrayMenu.Add(T("menu.models"), ModelsMenu)
+    LangMenu.Delete()
+    for code in ["en", "pt", "fr", "es"] {
+        LangMenu.Add(LANG[code]["lang.name"], SetLanguage.Bind(code))
+        if (code = ActiveLang)
+            LangMenu.Check(LANG[code]["lang.name"])
+    }
+    A_TrayMenu.Add(T("menu.lang"), LangMenu)
+    A_TrayMenu.Add()
+    A_TrayMenu.Add(T("menu.folder"), (*) => Run(A_ScriptDir))
+    A_TrayMenu.Add(T("menu.help"), ShowHelp)
+    A_TrayMenu.Add(T("menu.exit"), ExitVoice)
+    if (warm)
+        A_TrayMenu.Check(T("menu.warm"))
+    if (IsAutostart())
+        A_TrayMenu.Check(T("menu.autostart"))
+}
 
 ; ---- Gesture: double-tap and hold CapsLock ---------------------------------
 ; "~" lets CapsLock pass through natively; we only observe down/up.
@@ -507,7 +542,8 @@ OnExit((*) => (StopRunner(), 0))
 try FileDelete(LOGF)
 Dbg("boot")
 StartRunner()
-; Restore the persisted toggle: whatever was checked on exit is back on launch.
+; Restore persisted choices: warm toggle, UI language, autostart check.
+; (Autostart itself lives in HKCU\...\Run; here we only re-check the menu.)
 ; Migrates the pre-installer warm.state that lived next to the script.
 try {
     if (!FileExist(WARMF) && FileExist(A_ScriptDir "\warm.state")) {
@@ -518,15 +554,22 @@ try {
 } catch {
 }
 try {
-    if (FileExist(WARMF) && Trim(FileRead(WARMF)) = "1") {
-        warm := true
-        HttpPost("/warm", 5000, '{"enabled":true}')
-        A_TrayMenu.Check("Manter modelos carregados")
+    if (FileExist(LOCALEF) && Trim(FileRead(LOCALEF)) != "") {
+        code := Trim(FileRead(LOCALEF))
+        if (code = "en" || code = "pt" || code = "fr" || code = "es")
+            ActiveLang := code
     }
 } catch {
 }
-if (IsAutostart())
-    A_TrayMenu.Check("Iniciar com o Windows")
+BuildTrayMenu()
+try {
+    if (FileExist(WARMF) && Trim(FileRead(WARMF)) = "1") {
+        warm := true
+        HttpPost("/warm", 5000, '{"enabled":true}')
+        A_TrayMenu.Check(T("menu.warm"))
+    }
+} catch {
+}
 RefreshModelsMenu()
 SetState("idle")
-TrayTip("OpenCode Voice", "Ativo. Duplo-toque e segure o CapsLock para falar.", 1)
+TrayTip("OpenCode Voice", T("tip.boot"), 1)

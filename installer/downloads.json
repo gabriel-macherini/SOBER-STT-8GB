@@ -10,7 +10,10 @@
       "dest": "models",
       "checkFile": "models/ggml-parakeet-tdt-0.6b-v3-q8_0.bin",
       "bytes": 668757119,
-      "installedBytes": 668757119
+      "installedBytes": 668757119,
+      "label_en": "Parakeet TDT v3 transcription model (Q8_0)",
+      "label_fr": "Modèle de transcription Parakeet TDT v3 (Q8_0)",
+      "label_es": "Modelo de transcripción Parakeet TDT v3 (Q8_0)"
     },
     {
       "id": "s1-model",
@@ -21,7 +24,10 @@
       "dest": "models",
       "checkFile": "models/s1-mini-q4_k_m.gguf",
       "bytes": 484219808,
-      "installedBytes": 484219808
+      "installedBytes": 484219808,
+      "label_en": "S1-mini EN normalization model (Q4_K_M)",
+      "label_fr": "Modèle de normalisation S1-mini EN (Q4_K_M)",
+      "label_es": "Modelo de normalización S1-mini EN (Q4_K_M)"
     },
     {
       "id": "qwen-model",
@@ -32,7 +38,10 @@
       "dest": "models",
       "checkFile": "models/Qwen3-4B-Q4_K_M.gguf",
       "bytes": 2497280256,
-      "installedBytes": 2497280256
+      "installedBytes": 2497280256,
+      "label_en": "Qwen3-4B PT/FR normalization model (Q4_K_M)",
+      "label_fr": "Modèle de normalisation Qwen3-4B PT/FR (Q4_K_M)",
+      "label_es": "Modelo de normalización Qwen3-4B PT/FR (Q4_K_M)"
     },
     {
       "id": "llama-cpp",
@@ -44,7 +53,10 @@
       "extract": true,
       "checkFile": "bin/llama/llama-server.exe",
       "bytes": 264478423,
-      "installedBytes": 600000000
+      "installedBytes": 600000000,
+      "label_en": "llama.cpp with CUDA (llama-server)",
+      "label_fr": "llama.cpp avec CUDA (llama-server)",
+      "label_es": "llama.cpp con CUDA (llama-server)"
     },
     {
       "id": "cuda-runtime",
@@ -56,7 +68,10 @@
       "extract": true,
       "checkFile": "bin/llama/cublas64_12.dll",
       "bytes": 391443627,
-      "installedBytes": 550000000
+      "installedBytes": 550000000,
+      "label_en": "CUDA runtime DLLs (cublas/cudart 12.4)",
+      "label_fr": "DLL CUDA runtime (cublas/cudart 12.4)",
+      "label_es": "DLL de CUDA runtime (cublas/cudart 12.4)"
     },
     {
       "id": "whisper-cpp",
@@ -68,7 +83,10 @@
       "extract": true,
       "checkFile": "bin/whisper/parakeet-cli.exe",
       "bytes": 684913404,
-      "installedBytes": 1150000000
+      "installedBytes": 1150000000,
+      "label_en": "whisper.cpp with CUDA (parakeet-cli)",
+      "label_fr": "whisper.cpp avec CUDA (parakeet-cli)",
+      "label_es": "whisper.cpp con CUDA (parakeet-cli)"
     }
   ]
 }

@@ -58,10 +58,22 @@ for ($i = 0; $i -lt $items.Count; $i++) {
 [void]$pas.AppendLine("  end;")
 [void]$pas.AppendLine("end;")
 [void]$pas.AppendLine("")
+foreach ($lang in @("En", "Pt", "Fr", "Es")) {
+  $key = "label_" + $lang.ToLower()
+  [void]$pas.AppendLine("")
+  [void]$pas.AppendLine("function DownloadList$lang(): String;")
+  [void]$pas.AppendLine("begin")
+  $quoted = foreach ($it in $items) { "'$(Q "  - $($it.$key): $($it.version)")'" }
+  [void]$pas.AppendLine("  Result := $($quoted -join ' + #13#10 + ');")
+  [void]$pas.AppendLine("end;")
+}
+[void]$pas.AppendLine("")
 [void]$pas.AppendLine("function DownloadListText(): String;")
 [void]$pas.AppendLine("begin")
-$quoted = foreach ($it in $items) { "'$(Q "  - $($it.label): $($it.version)")'" }
-[void]$pas.AppendLine("  Result := $($quoted -join ' + #13#10 + ');")
+[void]$pas.AppendLine("  if ActiveLanguage() = 'fr' then Result := DownloadListFr()")
+[void]$pas.AppendLine("  else if ActiveLanguage() = 'es' then Result := DownloadListEs()")
+[void]$pas.AppendLine("  else if ActiveLanguage() = 'en' then Result := DownloadListEn()")
+[void]$pas.AppendLine("  else Result := DownloadListPt();")
 [void]$pas.AppendLine("end;")
 
 $out = Join-Path $INSTALLER "generated-downloads.iss"

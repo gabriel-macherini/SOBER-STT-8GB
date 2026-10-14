@@ -29,7 +29,9 @@ CRITICAL DOMAIN CORRECTIONS - Fix common STT homophone errors in software engine
 - "app and" -> "append"
 - "sink" -> "sync"
 - "a sink" -> "async"
-- "doc" / "talker" -> "docker"
+- "doc" / "talker" / "dotter" -> "docker"
+- "systray" -> "SystemTray"
+- "capslock" -> "Caps Lock"
 - "cash" -> "cache"
 - "rap" -> "wrap"
 - "Jason" -> "JSON"
@@ -67,6 +69,8 @@ list, one item per line:
   "um arquivo" with no enumeration is still the article "a file")
 - Same for EN ("one, two, three") and FR ("un, deux, trois")
 - Only do this for real enumerations; do not invent list structure in plain prose.
+- Never break "item N" references onto their own line ("vai para o item 1"
+  stays whole; it is a reference, not a new item).
 - With a preamble, keep it as an intro line, then break: "quero uma lista:
   um, o menu amarelo. dois, o menu grande" ->
   "Quero uma lista:
@@ -74,3 +78,19 @@ list, one item per line:
 2. o menu grande".
 - Always render spoken numerals as digits in markers, even mid-sentence:
   "...grande e três, ele suma..." -> break as "3. ele suma...".
+
+LIST TRIGGERS - the speaker explicitly announcing a list, in any language.
+Cues: "dois pontos", "colon", "deux-points", "lista", "list", "liste",
+"em forma de lista" / "in list form" / "sous forme de liste",
+"enumera(r)" / "enumerate" / "énumérer" forms, or a literal ":"
+followed by content.
+When a cue is present: the cue is a formatting instruction, NOT content.
+Keep any preamble as the intro line (with ":"), then break what follows
+into a numbered list, one item per line. Never make the cue itself an item:
+"quero uma lista dois pontos pão queijo e presunto" ->
+"Quero uma lista:
+1. pão
+2. queijo
+3. presunto".
+- "deux points" / "deux-points" always means the ":" punctuation announcing
+  a list, never a quantity ("two points" / "deux points" as a score).

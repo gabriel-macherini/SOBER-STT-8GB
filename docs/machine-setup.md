@@ -31,7 +31,8 @@ Source of truth is the plugin repo; copied here for reference:
 | `-c` | 2048 | Short normalization prompts never need more |
 | `--temp` | 0 | Deterministic cleanup output |
 | `-ngl` | 99 | Full GPU offload (8 GB card) |
-| `--no-mmap` | — | Full load each start (~1–1.5 s, hidden by pre-warm); avoids mmap page-fault stutter |
+| `--no-mmap` / `--load-mode none` | — | Full load each start (~1–1.5 s, hidden by pre-warm); avoids mmap page-fault stutter. `--no-mmap` on old builds, `--load-mode none` on new ones (`local-llm-manager.js` probes the binary and picks) |
+| `--reasoning off` (new) / `--chat-template-kwargs '{"enable_thinking":false}'` (old) | — | Thinking disabled: deterministic cleanup output (also probed per binary) |
 | `--flash-attn` | on | Faster attention on RTX |
 | threads | default (all cores) | Matches the 6-core CPU |
 

@@ -60,13 +60,18 @@ for ($i = 0; $i -lt $items.Count; $i++) {
 [void]$pas.AppendLine("")
 [void]$pas.AppendLine("function DownloadListText(): String;")
 [void]$pas.AppendLine("begin")
-$lines = for ($i = 0; $i -lt $items.Count; $i++) { "  - $($items[$i].label): $($items[$i].version)" }
-[void]$pas.AppendLine("  Result := '$(Q ($lines -join "' + #13#10 + '"))';")
+$quoted = foreach ($it in $items) { "'$(Q "  - $($it.label): $($it.version)")'" }
+[void]$pas.AppendLine("  Result := $($quoted -join ' + #13#10 + ');")
 [void]$pas.AppendLine("end;")
 
 $out = Join-Path $INSTALLER "generated-downloads.iss"
 [IO.File]::WriteAllText($out, $pas.ToString(), (New-Object Text.UTF8Encoding $true))
 Write-Host "wrote generated-downloads.iss ($($items.Count) items)"
+
+$total = ($items | Measure-Object installedBytes -Sum).Sum
+$defs = "#define DownloadTotalBytes $total`r`n"
+[IO.File]::WriteAllText((Join-Path $INSTALLER "generated-downloads-defs.iss"), $defs, (New-Object Text.UTF8Encoding $true))
+Write-Host "total installed bytes: $total"
 
 Write-Host "== compiling installer"
 & $ISCC (Join-Path $INSTALLER "sober-stt.iss")

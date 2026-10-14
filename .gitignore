@@ -8,6 +8,7 @@ config.local.json
 dist/
 .cache/
 installer/generated-downloads.iss
+installer/generated-downloads-defs.iss
 
 # Debug leftovers.
 *.log

@@ -11,6 +11,8 @@
 #define AppVersion "1.0.0"
 #define DistDir "..\dist\SOBER-STT"
 
+#include "generated-downloads-defs.iss"
+
 [Setup]
 AppId={{3B075193-1973-403F-AEE4-5DF4B41E28C7}
 AppName=SOBER-STT
@@ -25,7 +27,10 @@ OutputBaseFilename=SOBER-STT-Setup-{#AppVersion}
 Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern
+SetupIconFile=..\voice-idle.ico
 UninstallDisplayIcon={app}\SOBER-STT.exe
+; Real disk need: staged app + everything in downloads.json (installed size)
+ExtraDiskSpaceRequired={#DownloadTotalBytes}
 ; ~4.5 GB of downloads; allow resuming a slow first install
 AllowCancelDuringInstall=yes
 
@@ -129,31 +134,48 @@ end;
 function NextButtonClick(CurPageID: Integer): Boolean;
 var
   I: Integer;
-  Target: String;
+  TmpFile, DestDir, DestFile: String;
 begin
   Result := True;
   if CurPageID = wpReady then
   begin
     if MissingCount() = 0 then
       Exit;
-    DownloadPage.Clear;
-    for I := 0 to DownloadCount - 1 do
-    begin
-      Target := ExpandConstant('{app}\') + DownloadCheckFile(I);
-      if not FileExists(Target) then
-        DownloadPage.Add(DownloadUrl(I), DownloadFile(I), '');
-    end;
+    { Downloads land directly in the target folder, item by item: }
+    { interrupting and re-running resumes (finished items are skipped). }
+    { An interrupted file itself restarts from zero (installer limitation). }
+    ForceDirectories(ExpandConstant('{app}'));
     DownloadPage.Show;
     try
-      try
-        DownloadPage.Download;
-      except
-        if DownloadPage.AbortedByUser then
-          MsgBox('Download cancelado. A instalação não pode continuar sem os modelos.', mbError, MB_OK)
-        else
-          MsgBox('Falha no download: ' + GetExceptionMessage + #13#10 +
-            'Verifique a conexão e rode o instalador de novo (itens prontos são pulados).', mbError, MB_OK);
-        Result := False;
+      for I := 0 to DownloadCount - 1 do
+      begin
+        if FileExists(ExpandConstant('{app}\') + DownloadCheckFile(I)) then
+          Continue;
+        DownloadPage.Clear;
+        DownloadPage.Add(DownloadUrl(I), DownloadFile(I), '');
+        try
+          DownloadPage.Download;
+        except
+          if DownloadPage.AbortedByUser then
+            MsgBox('Download interrompido. Rode o instalador de novo: o que já baixou é aproveitado.',
+              mbInformation, MB_OK)
+          else
+            MsgBox('Falha no download de ' + DownloadLabel(I) + ': ' + GetExceptionMessage + #13#10 +
+              'Rode o instalador de novo: o que já baixou é aproveitado.', mbError, MB_OK);
+          Result := False;
+          Exit;
+        end;
+        TmpFile := ExpandConstant('{tmp}\') + DownloadFile(I);
+        DestDir := ExpandConstant('{app}\') + DownloadDestSub(I);
+        ForceDirectories(DestDir);
+        DestFile := DestDir + '\' + DownloadFile(I);
+        if not CopyFile(TmpFile, DestFile, False) then
+        begin
+          MsgBox('Não consegui salvar ' + DestFile + '. Rode o instalador de novo.', mbError, MB_OK);
+          Result := False;
+          Exit;
+        end;
+        DeleteFile(TmpFile);
       end;
     finally
       DownloadPage.Hide;
@@ -164,8 +186,7 @@ end;
 procedure CurStepChanged(CurStep: TSetupStep);
 var
   I, Code: Integer;
-  TmpFile, DestDir, DestFile, Check: String;
-  Failures: String;
+  ZipFile, DestDir, Check, Failures: String;
 begin
   if CurStep <> ssPostInstall then
     Exit;
@@ -175,26 +196,22 @@ begin
     Check := ExpandConstant('{app}\') + DownloadCheckFile(I);
     if FileExists(Check) then
       Continue;
-    TmpFile := ExpandConstant('{tmp}\') + DownloadFile(I);
     DestDir := ExpandConstant('{app}\') + DownloadDestSub(I);
-    ForceDirectories(DestDir);
+    ZipFile := DestDir + '\' + DownloadFile(I);
     if DownloadExtract(I) then
     begin
       { Some upstream zips nest files one level deep (whisper.cpp uses
         Release\); flatten so bins land directly in the dest folder. }
-      Exec('powershell.exe',
-        '-NoProfile -NonInteractive -Command "Expand-Archive -LiteralPath ''' + TmpFile +
+      if FileExists(ZipFile) then
+      begin
+        Exec('powershell.exe',
+          '-NoProfile -NonInteractive -Command "Expand-Archive -LiteralPath ''' + ZipFile +
         ''' -DestinationPath ''' + DestDir + ''' -Force; ' +
         '$r=''' + DestDir + '\Release''; ' +
         'if (Test-Path $r) { Move-Item $r\* ''' + DestDir + ''' -Force; Remove-Item $r }"',
         '', SW_HIDE, ewWaitUntilTerminated, Code);
-      DeleteFile(TmpFile);
-    end
-    else
-    begin
-      DestFile := DestDir + '\' + DownloadFile(I);
-      if CopyFile(TmpFile, DestFile, False) then
-        DeleteFile(TmpFile);
+        DeleteFile(ZipFile);
+      end;
     end;
     if not FileExists(Check) then
       Failures := Failures + '  - ' + DownloadLabel(I) + ' (' + DownloadVersion(I) + ')' + #13#10;

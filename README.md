@@ -76,6 +76,7 @@ Machine paths live in `config.json` (relative to the install folder; absolute pa
 | `llamaBin` / `s1Model` / `qwenModel` | `bin/llama/...` / `models/...` | LLM server binary + models |
 | `parakeetThreads` | `6` | Match your CPU cores |
 | `runnerPort` / `s1Port` / `qwenPort` | `8791` / `8080` / `8081` | Local ports (tray app reads `runnerPort` too) |
+| `promptFile` | `prompts/stt-system-prompt.md` | Normalizer prompt (`prompts/stt-system-prompt-v2.md` available for A/B tests; `last.json` records which one was used) |
 
 Gesture/overlay knobs still live at the top of `voice-tray.ahk`:
 

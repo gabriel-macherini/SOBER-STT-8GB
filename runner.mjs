@@ -159,19 +159,22 @@ const logger = {
   },
 };
 
-// STT system prompt: canonical copy lives in prompts/stt-system-prompt.md
-// (PT + list rules); falls back to the lib default if the file is missing.
-// The leading <!-- --> doc block is stripped so it never reaches the model.
+// STT system prompt: canonical copy lives in prompts/ (configurable via
+// promptFile, so prompt variants can be A/B tested). Falls back to the lib
+// default if the file is missing. The leading <!-- --> doc block is stripped
+// so it never reaches the model.
 function loadPromptFile() {
+  const rel = CONFIG.promptFile || "prompts/stt-system-prompt.md";
+  const name = String(rel).replace(/\\/g, "/").split("/").pop();
   try {
-    const file = new URL("./prompts/stt-system-prompt.md", import.meta.url).pathname.replace(/^\//, "");
+    const file = resolvePath(rel);
     const stripped = fs
       .readFileSync(file, "utf8")
       .replace(/^<!--[\s\S]*?-->\s*/, "")
       .replace(/\s+$/, "");
     if (stripped.trim()) {
-      logger.log("VOICE", "Using prompts/stt-system-prompt.md", "debug");
-      return { source: "file", text: stripped };
+      logger.log("VOICE", `Using ${rel}`, "debug");
+      return { source: name, text: stripped };
     }
   } catch (e) {
     logger.log("VOICE", `Prompt file unreadable, using lib default: ${e.message}`, "warn");

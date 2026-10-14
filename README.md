@@ -21,7 +21,18 @@ Push-to-talk voice dictation for Windows. Double-tap and hold **CapsLock**, spea
 - **💾 It remembers** — the "keep models loaded" toggle persists across restarts.
 - **🪟 Works everywhere** — pastes into any focused window: Zed, VS Code, browser, Obsidian.
 
-## 🚀 Quick start
+## 📦 Install (end user)
+
+Download `SOBER-STT-Setup-*.exe` from Releases and run it. One click:
+
+1. Pick a folder (default `%LocalAppData%\SOBER-STT-8GB`, no admin needed).
+2. Check Desktop / Start Menu icons and **Start with Windows** if you want them.
+3. The wizard shows exactly what it downloads (name + version + size, see `installer/downloads.json`) — ~4.5 GB of models and GPU binaries, skipped if already present — then leaves the app ready to dictate.
+
+No Node, no AutoHotkey, no repo clone needed on the target machine.
+Requires Windows 10/11 x64 and (for good speed) an NVIDIA GPU with a CUDA driver.
+
+## 🚀 Quick start (from source)
 
 ```powershell
 # 1. Requirements: Windows, Node 22+, AutoHotkey v2
@@ -48,24 +59,24 @@ This project was built for and tested on exactly this machine. Porting it elsewh
 | Mic | Fifine Hub as Windows default input | Native winmm via `rec.ps1` (`sox -d` is broken on Win11) |
 | Transcriber | `bin\whisper\parakeet-cli.exe` (whisper.cpp CUDA build) + `ggml-parakeet-tdt-0.6b-v3-q8_0.bin` (~640 MB) | ~950 ms per dictation |
 | LLM servers | `bin\llama\llama-server.exe` + `s1-mini` (462 MB, EN) + `Qwen3-4B` (2.3 GB, PT/FR) | Spawned on demand, see [opencode-voice](https://github.com/gabriel-macherini/opencode-voice) |
-| Pipeline code | `opencode-voice/lib/` (sibling repo, imported by absolute `file://` path) | STT + normalization logic lives there |
+| Pipeline code | `lib/` (vendored from opencode-voice, paths via `config.json`) | STT + normalization logic lives here |
 
 ## 📥 Will a fresh clone work first try?
 
-Honestly: **no — it needs the toolchain above first.** The clone gives you the app, the overlay, and the gesture; the voice pipeline (mic recorder, Parakeet, LLM servers) comes from the setup above. Checklist before first run:
-
-- [ ] Windows 10/11 with Node 22+ and AutoHotkey v2 installed
-- [ ] Clone [opencode-voice](https://github.com/gabriel-macherini/opencode-voice) next to it (the `LIB` import in `runner.mjs` points there)
-- [ ] `rec.ps1` + `parakeet-cli` + Parakeet ggml model in place
-- [ ] `llama-server` + s1/Qwen models in place
-- [ ] Edit the absolute paths at the top of `runner.mjs` (and `rec-host.ps1` if needed) to match your machine
-- [ ] Run `voice-tray.ahk`, double-tap-hold CapsLock, speak
-
-Future work: centralize all machine paths in one `config.json` so setup is edit-one-file. Contributions welcome.
+End users should use the installer above. From source, you need the toolchain first: Windows 10/11 with Node 22+ and AutoHotkey v2, plus binaries + models laid out as in `config.json` (or override paths in `config.local.json`). Then run `voice-tray.ahk`, double-tap-hold CapsLock, speak.
 
 ## ⚙️ Configuration
 
-All knobs live at the top of `voice-tray.ahk` — no config file needed:
+Machine paths live in `config.json` (relative to the install folder; absolute paths and `%ENV%` also work). A `config.local.json` next to it (gitignored) overrides values on dev machines.
+
+| Key | Default | What |
+|---|---|---|
+| `parakeetBin` / `parakeetModel` | `bin/whisper/...` / `models/ggml-parakeet-...bin` | Transcriber binary + model |
+| `llamaBin` / `s1Model` / `qwenModel` | `bin/llama/...` / `models/...` | LLM server binary + models |
+| `parakeetThreads` | `6` | Match your CPU cores |
+| `runnerPort` / `s1Port` / `qwenPort` | `8791` / `8080` / `8081` | Local ports (tray app reads `runnerPort` too) |
+
+Gesture/overlay knobs still live at the top of `voice-tray.ahk`:
 
 | Constant | Default | What |
 |---|---|---|
@@ -74,7 +85,7 @@ All knobs live at the top of `voice-tray.ahk` — no config file needed:
 | `COL_REC` / `COL_TRA` / `COL_NOR` | green / orange / blue | Phase colors |
 | `VOICE_DEBUG` | `false` | Gesture log in `%TEMP%\voice-tray.log` |
 
-Tray menu: **Manter modelos carregados** (persisted in `warm.state`), **Abrir pasta**, **Sair**.
+Tray menu: **Manter modelos carregados** + **Iniciar com o Windows** (persisted in `%APPDATA%\SOBER-STT-8GB\` / `HKCU\...\Run`), **Abrir pasta**, **Sair**.
 
 ## 🏗️ How it works
 
@@ -106,9 +117,20 @@ clipboard + Ctrl+V ──► focused window
 
 ## 🗺️ Roadmap
 
-- [ ] Single `config.json` for all machine paths (portability)
+- [x] Single `config.json` for all machine paths (portability)
 - [ ] Optional TTS read-back (the sibling plugin already has the engine)
-- [ ] Packaged `.exe` via Ahk2Exe (no AutoHotkey install needed)
+- [x] Packaged `.exe` via Ahk2Exe (no AutoHotkey install needed)
+
+## 🔨 Building the installer
+
+Prerequisites: AutoHotkey v2 (for Ahk2Exe) and Inno Setup 6 (`winget install JRSoftware.InnoSetup`).
+
+```powershell
+pwsh tools/build-portable.ps1   # dist/SOBER-STT: exe + Node portable + app files
+pwsh tools/build-installer.ps1  # dist/SOBER-STT-Setup-1.0.0.exe
+```
+
+Download versions are pinned in `installer/downloads.json` (single source of truth — the wizard lists them verbatim). Bump a version there and rebuild.
 
 ## 📄 License
 
@@ -129,7 +151,11 @@ Ditada por voz push-to-talk para Windows. Toque duas vezes no **CapsLock** e seg
 - **💾 Lembra de você** — o toggle "manter modelos carregados" sobrevive a reinicializações.
 - **🪟 Funciona em tudo** — cola em qualquer janela em foco: Zed, VS Code, navegador, Obsidian.
 
-### 🚀 Início rápido
+### 📦 Instalação
+
+Baixe o `SOBER-STT-Setup-*.exe` em Releases e execute. Escolha a pasta, marque ícone na Área de Trabalho / Menu Iniciar e **Iniciar com o Windows** se quiser, e o assistente baixa os modelos e binários (lista com versões em `installer/downloads.json`, ~4,5 GB) e deixa pronto para ditar. Sem Node, AutoHotkey ou clone na máquina alvo.
+
+### 🚀 Início rápido (do código-fonte)
 
 ```powershell
 # 1. Requisitos: Windows, Node 22+, AutoHotkey v2
@@ -146,14 +172,9 @@ Botão direito no ícone da bandeja → **Sair** para encerrar (libera a VRAM na
 
 ### 📥 Um clone fresco funciona de primeira?
 
-Sinceramente: **não — precisa do toolchain antes.** O clone traz o app, o overlay e o gesto; o pipeline de voz (gravador, Parakeet, servidores LLM) vem do setup acima. Checklist antes da primeira fala:
+Para uso normal, prefira o instalador acima. Do código-fonte, monte o toolchain antes: Windows 10/11 com Node 22+ e AutoHotkey v2, mais binários + modelos no layout do `config.json` (ou sobrescreva em `config.local.json`). Aí rode o `voice-tray.ahk`, dois toques + segurar o CapsLock, falar.
 
-- [ ] Windows 10/11 com Node 22+ e AutoHotkey v2
-- [ ] Clonar o [opencode-voice](https://github.com/gabriel-macherini/opencode-voice) ao lado (o `LIB` no `runner.mjs` aponta para lá)
-- [ ] `rec.ps1` + `parakeet-cli` + modelo ggml no lugar
-- [ ] `llama-server` + modelos s1/Qwen no lugar
-- [ ] Ajustar os caminhos absolutos no topo do `runner.mjs` (e `rec-host.ps1` se preciso) para a sua máquina
-- [ ] Rodar o `voice-tray.ahk`, dois toques + segurar o CapsLock, falar
+Menu da bandeja: **Manter modelos carregados** + **Iniciar com o Windows**, **Abrir pasta**, **Sair**.
 
 ### 📄 Licença
 

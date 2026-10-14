@@ -327,13 +327,30 @@ function send(res, code, payload) {
   res.end(JSON.stringify(payload));
 }
 
+// First-boot diagnosis: the installer guarantees these files, but a manual
+// copy may miss them. Surfaced in /health so the tray app (or a user with
+// curl) can say exactly what is missing.
+function checkDeps() {
+  const files = {
+    parakeetBin: OPTIONS.parakeetBin,
+    parakeetModel: OPTIONS.parakeetModel,
+    llamaBin: llmServers.SERVERS_META?.s1?.bin,
+    s1Model: llmServers.SERVERS_META?.s1?.modelFile,
+    qwenModel: llmServers.SERVERS_META?.qwen?.modelFile,
+  };
+  const missing = Object.entries(files)
+    .filter(([, p]) => !p || !fs.existsSync(p))
+    .map(([k]) => k);
+  return { ok: missing.length === 0, missing };
+}
+
 const server = http.createServer(async (req, res) => {
   const path = new URL(req.url, "http://127.0.0.1").pathname;
   const method = req.method;
 
   try {
     if (method === "GET" && path === "/health") {
-      return send(res, 200, { ok: true, recording, processing, warm, phase });
+      return send(res, 200, { ok: true, recording, processing, warm, phase, deps: checkDeps() });
     }
     if (method === "POST" && path === "/start") {
       if (recording || processing) return send(res, 200, { ok: true, recording });

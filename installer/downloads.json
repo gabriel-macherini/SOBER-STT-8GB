@@ -1,0 +1,62 @@
+{
+  "_comment": "Single source of truth for everything the installer downloads. Shown verbatim in the wizard's 'what will be downloaded' page (label + version + size). tools/build-installer.ps1 regenerates installer/generated-downloads.iss from this file.",
+  "items": [
+    {
+      "id": "parakeet-model",
+      "label": "Modelo de transcricao Parakeet TDT v3 (Q8_0)",
+      "version": "ggml-org/parakeet-GGUF (669 MB)",
+      "file": "ggml-parakeet-tdt-0.6b-v3-q8_0.bin",
+      "url": "https://huggingface.co/ggml-org/parakeet-GGUF/resolve/main/ggml-parakeet-tdt-0.6b-v3-q8_0.bin",
+      "dest": "models",
+      "checkFile": "models/ggml-parakeet-tdt-0.6b-v3-q8_0.bin"
+    },
+    {
+      "id": "s1-model",
+      "label": "Modelo de normalizacao S1-mini EN (Q4_K_M)",
+      "version": "superwhisper/s1-mini-GGUF (484 MB)",
+      "file": "s1-mini-q4_k_m.gguf",
+      "url": "https://huggingface.co/superwhisper/s1-mini-GGUF/resolve/main/s1-mini-q4_k_m.gguf",
+      "dest": "models",
+      "checkFile": "models/s1-mini-q4_k_m.gguf"
+    },
+    {
+      "id": "qwen-model",
+      "label": "Modelo de normalizacao Qwen3-4B PT/FR (Q4_K_M)",
+      "version": "Qwen/Qwen3-4B-GGUF (2.5 GB)",
+      "file": "Qwen3-4B-Q4_K_M.gguf",
+      "url": "https://huggingface.co/Qwen/Qwen3-4B-GGUF/resolve/main/Qwen3-4B-Q4_K_M.gguf",
+      "dest": "models",
+      "checkFile": "models/Qwen3-4B-Q4_K_M.gguf"
+    },
+    {
+      "id": "llama-cpp",
+      "label": "llama.cpp com CUDA (llama-server)",
+      "version": "b11429 win-cuda-12.4-x64 (264 MB)",
+      "file": "llama-b11429-bin-win-cuda-12.4-x64.zip",
+      "url": "https://github.com/ggml-org/llama.cpp/releases/download/b11429/llama-b11429-bin-win-cuda-12.4-x64.zip",
+      "dest": "bin/llama",
+      "extract": true,
+      "checkFile": "bin/llama/llama-server.exe"
+    },
+    {
+      "id": "cuda-runtime",
+      "label": "CUDA runtime DLLs (cublas/cudart 12.4)",
+      "version": "llama.cpp b11429 cudart (391 MB)",
+      "file": "cudart-llama-bin-win-cuda-12.4-x64.zip",
+      "url": "https://github.com/ggml-org/llama.cpp/releases/download/b11429/cudart-llama-bin-win-cuda-12.4-x64.zip",
+      "dest": "bin/llama",
+      "extract": true,
+      "checkFile": "bin/llama/cublas64_12.dll"
+    },
+    {
+      "id": "whisper-cpp",
+      "label": "whisper.cpp com CUDA (parakeet-cli)",
+      "version": "b5454 win-cuda-12.4.0-x64 (685 MB)",
+      "file": "whisper-bin-win-cuda-12.4.0-x64.zip",
+      "url": "https://github.com/ggml-org/whisper.cpp/releases/download/b5454/whisper-bin-win-cuda-12.4.0-x64.zip",
+      "dest": "bin/whisper",
+      "extract": true,
+      "checkFile": "bin/whisper/parakeet-cli.exe"
+    }
+  ]
+}

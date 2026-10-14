@@ -16,6 +16,13 @@ Persistent
 ; ============================================================================
 
 PORT := 8791
+; Honor config.json so installs can move off the default port on conflict.
+try {
+    cfgText := FileRead(A_ScriptDir "\config.json")
+    if (RegExMatch(cfgText, '"runnerPort"\s*:\s*(\d+)', &m))
+        PORT := Integer(m[1])
+} catch {
+}
 ; Prefer the bundled portable Node (installer layout); fall back to PATH.
 NODE := "node"
 if FileExist(A_ScriptDir "\node\node.exe")

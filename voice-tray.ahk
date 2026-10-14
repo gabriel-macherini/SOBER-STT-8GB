@@ -16,7 +16,10 @@ Persistent
 ; ============================================================================
 
 PORT := 8791
+; Prefer the bundled portable Node (installer layout); fall back to PATH.
 NODE := "node"
+if FileExist(A_ScriptDir "\node\node.exe")
+    NODE := A_ScriptDir "\node\node.exe"
 RUNNER := A_ScriptDir "\runner.mjs"
 ICON_IDLE := A_ScriptDir "\voice-idle.ico"
 ICON_REC := A_ScriptDir "\voice-rec.ico"
@@ -39,7 +42,11 @@ COL_NOR := "0x4C9AFF"   ; blue
 LOGF := A_Temp "\voice-tray.log"
 LEVELF := A_Temp "\opencode-stt.level"
 PHASEF := A_Temp "\opencode-stt.phase"
-WARMF := A_ScriptDir "\warm.state"   ; "1" = keep models loaded
+; Persisted toggles live outside the install folder (which may be read-only).
+STATE_DIR := EnvGet("APPDATA") . "\SOBER-STT-8GB"
+WARMF := STATE_DIR "\warm.state"   ; "1" = keep models loaded
+REG_RUN := "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Run"
+REG_NAME := "SOBER-STT"
 
 global runnerPID := 0
 global warm := false
@@ -301,9 +308,11 @@ ExitVoice(*) {
 }
 
 ToggleWarm(*) {
-    global warm
+    global warm, STATE_DIR, WARMF
     warm := !warm
     try {
+        if (!DirExist(STATE_DIR))
+            DirCreate(STATE_DIR)
         try FileDelete(WARMF)
         FileAppend(warm ? "1" : "0", WARMF)
     } catch {
@@ -318,9 +327,44 @@ ToggleWarm(*) {
     }
 }
 
+; ---- Autostart (Iniciar com o Windows) ------------------------------------
+; Persisted in HKCU\...\Run; A_ScriptFullPath covers both dev (.ahk) and the
+; compiled SOBER-STT.exe from the installer.
+IsAutostart() {
+    global REG_RUN, REG_NAME
+    try {
+        RegRead(REG_RUN, REG_NAME)
+        return true
+    } catch {
+        return false
+    }
+}
+
+SetAutostart(enable) {
+    global REG_RUN, REG_NAME
+    if (enable) {
+        try RegWrite('"' . A_ScriptFullPath . '"', "REG_SZ", REG_RUN, REG_NAME)
+    } else {
+        try RegDelete(REG_RUN, REG_NAME)
+    }
+}
+
+ToggleAutostart(*) {
+    enable := !IsAutostart()
+    SetAutostart(enable)
+    if (enable) {
+        A_TrayMenu.Check("Iniciar com o Windows")
+        TrayTip("OpenCode Voice", "Vai iniciar junto com o Windows.", 1)
+    } else {
+        A_TrayMenu.Uncheck("Iniciar com o Windows")
+        TrayTip("OpenCode Voice", "Nao vai mais iniciar com o Windows.", 1)
+    }
+}
+
 ; ---- Tray menu -------------------------------------------------------------
 A_TrayMenu.Delete()
 A_TrayMenu.Add("Manter modelos carregados", ToggleWarm)
+A_TrayMenu.Add("Iniciar com o Windows", ToggleAutostart)
 A_TrayMenu.Add()
 A_TrayMenu.Add("Abrir pasta", (*) => Run(A_ScriptDir))
 A_TrayMenu.Add("Sair", ExitVoice)
@@ -365,6 +409,15 @@ try FileDelete(LOGF)
 Dbg("boot")
 StartRunner()
 ; Restore the persisted toggle: whatever was checked on exit is back on launch.
+; Migrates the pre-installer warm.state that lived next to the script.
+try {
+    if (!FileExist(WARMF) && FileExist(A_ScriptDir "\warm.state")) {
+        if (!DirExist(STATE_DIR))
+            DirCreate(STATE_DIR)
+        FileMove(A_ScriptDir "\warm.state", WARMF)
+    }
+} catch {
+}
 try {
     if (FileExist(WARMF) && Trim(FileRead(WARMF)) = "1") {
         warm := true
@@ -373,5 +426,7 @@ try {
     }
 } catch {
 }
+if (IsAutostart())
+    A_TrayMenu.Check("Iniciar com o Windows")
 SetState("idle")
 TrayTip("OpenCode Voice", "Ativo. Duplo-toque e segure o CapsLock para falar.", 1)

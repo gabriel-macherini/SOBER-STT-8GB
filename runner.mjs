@@ -22,23 +22,60 @@
 
 import http from "node:http";
 import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { execFileSync, spawn } from "node:child_process";
 
-const LIB = "file:///C:/Users/the_s/opencode-voice/lib/";
-const stt = await import(LIB + "stt.js");
-const { createClient } = await import(LIB + "llm-client.js");
-const llmServers = await import(LIB + "local-llm-manager.js");
+const ROOT = path.dirname(fileURLToPath(import.meta.url));
 
-const PORT = 8791;
+// Machine config: config.json (installer layout, relative paths) optionally
+// overridden by config.local.json (dev machines, gitignored).
+function resolvePath(value) {
+  if (!value) return value;
+  const expanded = String(value).replace(/%([^%]+)%/g, (_, name) => process.env[name] || `%${name}%`);
+  return path.isAbsolute(expanded) ? expanded : path.join(ROOT, expanded);
+}
+
+function loadConfig() {
+  const base = JSON.parse(fs.readFileSync(path.join(ROOT, "config.json"), "utf8"));
+  try {
+    const local = JSON.parse(fs.readFileSync(path.join(ROOT, "config.local.json"), "utf8"));
+    return { ...base, ...local };
+  } catch {
+    return base;
+  }
+}
+const CONFIG = loadConfig();
+
+const stt = await import("./lib/stt.js");
+const { createClient } = await import("./lib/llm-client.js");
+const llmServers = await import("./lib/local-llm-manager.js");
+
+const PORT = CONFIG.runnerPort || 8791;
 const IDLE_KILL_MS = 60_000;
 const WARM_TOUCH_MS = 45_000;
 const REC_HOST = new URL("./rec-host.ps1", import.meta.url).pathname.replace(/^\//, "");
 // Mirrors the plugin options currently in cli.json.
 const OPTIONS = {
-  endpoint: "http://127.0.0.1:8081/v1",
-  model: "qwen3-4b",
-  tmpDir: "C:/Users/the_s/AppData/Local/Temp",
+  endpoint: CONFIG.endpoint || "http://127.0.0.1:8081/v1",
+  model: CONFIG.model || "qwen3-4b",
+  tmpDir: CONFIG.tmpDir || os.tmpdir(),
+  parakeetBin: resolvePath(CONFIG.parakeetBin),
+  parakeetModel: resolvePath(CONFIG.parakeetModel),
+  parakeetThreads: CONFIG.parakeetThreads || 6,
+  s1Model: resolvePath(CONFIG.s1Model),
+  qwenModel: resolvePath(CONFIG.qwenModel),
+  s1Endpoint: `http://127.0.0.1:${CONFIG.s1Port || 8080}/v1`,
+  qwenEndpoint: `http://127.0.0.1:${CONFIG.qwenPort || 8081}/v1`,
 };
+llmServers.configureLocalLlm({
+  llamaBin: resolvePath(CONFIG.llamaBin),
+  s1Model: OPTIONS.s1Model,
+  qwenModel: OPTIONS.qwenModel,
+  s1Port: CONFIG.s1Port || 8080,
+  qwenPort: CONFIG.qwenPort || 8081,
+});
 
 // Mic level file, read by the overlay in voice-tray.ahk.
 const LEVEL_PATH = OPTIONS.tmpDir + "/opencode-stt.level";

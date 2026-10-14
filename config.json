@@ -1,0 +1,15 @@
+{
+  "_comment": "SOBER-STT-8GB machine config. Relative paths resolve against the install folder (where runner.mjs lives). Absolute paths and %ENV% also work. A config.local.json next to this file (gitignored) overrides these values on dev machines.",
+  "runnerPort": 8791,
+  "s1Port": 8080,
+  "qwenPort": 8081,
+  "endpoint": "http://127.0.0.1:8081/v1",
+  "model": "qwen3-4b",
+  "tmpDir": "",
+  "parakeetBin": "bin/whisper/parakeet-cli.exe",
+  "parakeetModel": "models/ggml-parakeet-tdt-0.6b-v3-q8_0.bin",
+  "parakeetThreads": 6,
+  "llamaBin": "bin/llama/llama-server.exe",
+  "s1Model": "models/s1-mini-q4_k_m.gguf",
+  "qwenModel": "models/Qwen3-4B-Q4_K_M.gguf"
+}

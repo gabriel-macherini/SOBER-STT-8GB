@@ -1,5 +1,8 @@
 # Local runtime state (toggle persistence lives here, per machine).
 warm.state
 
+# Dev-machine config overrides (personal paths, never commit).
+config.local.json
+
 # Debug leftovers.
 *.log

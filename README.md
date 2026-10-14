@@ -85,7 +85,11 @@ Gesture/overlay knobs still live at the top of `voice-tray.ahk`:
 | `COL_REC` / `COL_TRA` / `COL_NOR` | green / orange / blue | Phase colors |
 | `VOICE_DEBUG` | `false` | Gesture log in `%TEMP%\voice-tray.log` |
 
-Tray menu: **Manter modelos carregados** + **Iniciar com o Windows** (persisted in `%APPDATA%\SOBER-STT-8GB\` / `HKCU\...\Run`), **Abrir pasta**, **Sair**.
+Tray menu: **Manter modelos carregados** + **Iniciar com o Windows** (persisted in `%APPDATA%\SOBER-STT-8GB\` / `HKCU\...\Run`), **Trocar modelo**, **Abrir pasta**, **Ajuda**, **Sair**.
+
+### 🔀 Swapping models
+
+Drop a `.gguf` (LLM) or `.bin` (Parakeet) into `models/` and pick it in **Trocar modelo** (per slot: transcription, EN normalization, PT/FR normalization). The runner validates extension + `GGUF` magic, applies immediately (LLM servers reload on next use), and persists in `%APPDATA%\SOBER-STT-8GB\models.override.json` ("Padrão do instalador" resets). Files over 3 GB ask for confirmation (8 GB VRAM risk).
 
 ## 🏗️ How it works
 
@@ -174,7 +178,7 @@ Botão direito no ícone da bandeja → **Sair** para encerrar (libera a VRAM na
 
 Para uso normal, prefira o instalador acima. Do código-fonte, monte o toolchain antes: Windows 10/11 com Node 22+ e AutoHotkey v2, mais binários + modelos no layout do `config.json` (ou sobrescreva em `config.local.json`). Aí rode o `voice-tray.ahk`, dois toques + segurar o CapsLock, falar.
 
-Menu da bandeja: **Manter modelos carregados** + **Iniciar com o Windows**, **Abrir pasta**, **Sair**.
+Menu da bandeja: **Manter modelos carregados** + **Iniciar com o Windows**, **Trocar modelo** (solte um `.gguf`/`.bin` em `models/` e selecione por função), **Abrir pasta**, **Ajuda**, **Sair**.
 
 ### 📄 Licença
 

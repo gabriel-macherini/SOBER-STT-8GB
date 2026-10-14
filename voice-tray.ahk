@@ -379,7 +379,8 @@ ShowHelp(*) {
     "Cores do overlay: verde gravando, laranja transcrevendo, azul normalizando.`n`n" .
     "MENU`n" .
     "- Manter modelos carregados: não descarrega a IA após 1 min parado.`n" .
-    "- Iniciar com o Windows: abre junto com o sistema.`n`n" .
+    "- Iniciar com o Windows: abre junto com o sistema.`n" .
+    "- Trocar modelo: usa um .gguf/.bin solto em modelos/ no lugar do padrão.`n`n" .
     "CONFERIR A NORMALIZAÇÃO`n" .
     "Após ditar, abra %TEMP%\opencode-stt.last.json:`n" .
     "raw = o que foi ouvido, text = o que foi colado,`n" .
@@ -388,10 +389,80 @@ ShowHelp(*) {
     MsgBox(help, "SOBER-STT - Ajuda", "OK Iconi")
 }
 
+; ---- Model switching (Trocar modelo) --------------------------------------
+; Lists the model files dropped in models/ per slot; the runner validates
+; (extension, GGUF magic) and persists the choice per machine. "Padrão do
+; instalador" clears the override back to config.json.
+MODELS_DIR := A_ScriptDir "\models"
+global ModelsMenu := Menu()
+global SubParakeet := Menu(), SubS1 := Menu(), SubQwen := Menu()
+global ActiveModels := Map("parakeet", "", "s1", "", "qwen", "")
+
+RefreshModelsMenu() {
+    global SubParakeet, SubS1, SubQwen, ActiveModels, MODELS_DIR
+    try {
+        h := HttpGet("/health")
+        if (RegExMatch(h, '"parakeet"\s*:\s*"([^"]*)"', &m))
+            ActiveModels["parakeet"] := m[1]
+        if (RegExMatch(h, '"s1"\s*:\s*"([^"]*)"', &m))
+            ActiveModels["s1"] := m[1]
+        if (RegExMatch(h, '"qwen"\s*:\s*"([^"]*)"', &m))
+            ActiveModels["qwen"] := m[1]
+    } catch {
+    }
+    for sub in [SubParakeet, SubS1, SubQwen] {
+        try sub.Delete()
+    }
+    AddModelItems(SubParakeet, "parakeet", MODELS_DIR "\*.bin")
+    AddModelItems(SubS1, "s1", MODELS_DIR "\*.gguf")
+    AddModelItems(SubQwen, "qwen", MODELS_DIR "\*.gguf")
+}
+
+AddModelItems(sub, slot, pattern) {
+    global ActiveModels
+    active := ActiveModels[slot]
+    sub.Add("Padrão do instalador", SwitchModel.Bind(slot, ""))
+    if (active = "")
+        sub.Check("Padrão do instalador")
+    sub.Add()
+    Loop Files pattern {
+        name := A_LoopFileName
+        sub.Add(name, SwitchModel.Bind(slot, name))
+        if (name = active)
+            sub.Check(name)
+    }
+}
+
+SwitchModel(slot, file, *) {
+    r := HttpPost("/models", 8000, '{"slot":"' . slot . '","file":"' . file . '"}')
+    if (InStr(r, '"ok":true')) {
+        RefreshModelsMenu()
+        TrayTip("OpenCode Voice", file = "" ? "Modelo padrão restaurado." : "Modelo ativado: " . file, 1)
+    } else if (InStr(r, "too-big-confirm")) {
+        if (MsgBox("Este modelo tem mais de 3 GB e pode estourar a VRAM de 8 GB. Usar mesmo assim?", "SOBER-STT", "YesNo Icon!") = "Yes") {
+            r2 := HttpPost("/models", 8000, '{"slot":"' . slot . '","file":"' . file . '","confirmed":true}')
+            if (InStr(r2, '"ok":true')) {
+                RefreshModelsMenu()
+                TrayTip("OpenCode Voice", "Modelo ativado: " . file, 1)
+            } else {
+                TrayTip("OpenCode Voice", "Troca recusada.", 2)
+            }
+        }
+    } else {
+        TrayTip("OpenCode Voice", "Troca recusada (arquivo inválido?).", 2)
+    }
+}
+
 ; ---- Tray menu -------------------------------------------------------------
 A_TrayMenu.Delete()
 A_TrayMenu.Add("Manter modelos carregados", ToggleWarm)
 A_TrayMenu.Add("Iniciar com o Windows", ToggleAutostart)
+ModelsMenu.Add("Transcrição (Parakeet)", SubParakeet)
+ModelsMenu.Add("Normalização EN (s1)", SubS1)
+ModelsMenu.Add("Normalização PT/FR (Qwen)", SubQwen)
+ModelsMenu.Add()
+ModelsMenu.Add("Abrir pasta de modelos", (*) => Run(MODELS_DIR))
+A_TrayMenu.Add("Trocar modelo", ModelsMenu)
 A_TrayMenu.Add()
 A_TrayMenu.Add("Abrir pasta", (*) => Run(A_ScriptDir))
 A_TrayMenu.Add("Ajuda", ShowHelp)
@@ -456,5 +527,6 @@ try {
 }
 if (IsAutostart())
     A_TrayMenu.Check("Iniciar com o Windows")
+RefreshModelsMenu()
 SetState("idle")
 TrayTip("OpenCode Voice", "Ativo. Duplo-toque e segure o CapsLock para falar.", 1)

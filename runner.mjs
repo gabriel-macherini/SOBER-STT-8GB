@@ -10,7 +10,10 @@
 //   POST /cancel           cancel the current recording
 //   POST /kill             kill local LLM servers (free VRAM/RAM)
 //   POST /warm {enabled}   keep s1/qwen loaded, or restore the 1-min idle kill
-//   GET  /health           { ok, recording, processing, warm }
+//   POST /models {slot, file} switch the model file for a slot
+//                          (slot: parakeet|s1|qwen, file: basename in models/
+//                          or "" for the installer default; persists per machine)
+//   GET  /health           { ok, recording, processing, warm, deps }
 //
 // Recording uses a persistent PowerShell host (rec-host.ps1) that compiles the
 // winmm recorder once. Spawning rec.ps1 per dictation cost ~1.2s and clipped the
@@ -77,6 +80,54 @@ llmServers.configureLocalLlm({
   qwenPort: CONFIG.qwenPort || 8081,
 });
 
+// Swappable model files: the tray "Trocar modelo" menu drops a file in
+// models/ and POSTs it here. Overrides persist per machine in the state dir
+// (next to warm.state) and win over config.json until reset to "".
+const MODELS_DIR = resolvePath(CONFIG.modelsDir || "models");
+function stateDir() {
+  const base = process.env.APPDATA || path.join(os.homedir(), ".config");
+  return path.join(base, "SOBER-STT-8GB");
+}
+function loadModelOverrides() {
+  try {
+    return JSON.parse(fs.readFileSync(path.join(stateDir(), "models.override.json"), "utf8"));
+  } catch {
+    return {};
+  }
+}
+const MODEL_OVERRIDES = loadModelOverrides();
+
+function activeModels() {
+  return {
+    parakeet: path.basename(OPTIONS.parakeetModel),
+    s1: path.basename(llmServers.SERVERS_META?.s1?.modelFile || ""),
+    qwen: path.basename(llmServers.SERVERS_META?.qwen?.modelFile || ""),
+  };
+}
+
+// Re-resolve model paths (config + overrides) and push them into the lib.
+// Called once at boot and on every POST /models. killSlot drops the running
+// server for that slot so the new file loads on next use (parakeet is
+// stateless: each dictation spawns it, so nothing to kill there).
+function applyModelOverrides(killSlot) {
+  OPTIONS.parakeetModel = MODEL_OVERRIDES.parakeet
+    ? path.join(MODELS_DIR, MODEL_OVERRIDES.parakeet)
+    : resolvePath(CONFIG.parakeetModel);
+  OPTIONS.s1Model = MODEL_OVERRIDES.s1
+    ? path.join(MODELS_DIR, MODEL_OVERRIDES.s1)
+    : resolvePath(CONFIG.s1Model);
+  OPTIONS.qwenModel = MODEL_OVERRIDES.qwen
+    ? path.join(MODELS_DIR, MODEL_OVERRIDES.qwen)
+    : resolvePath(CONFIG.qwenModel);
+  stt.configureSttRuntime(OPTIONS, logger);
+  llmServers.configureLocalLlm({ s1Model: OPTIONS.s1Model, qwenModel: OPTIONS.qwenModel });
+  if (killSlot === "s1" || killSlot === "qwen") {
+    try {
+      llmServers.killServer(killSlot, logger);
+    } catch {}
+  }
+}
+
 // Mic level file, read by the overlay in voice-tray.ahk.
 const LEVEL_PATH = OPTIONS.tmpDir + "/opencode-stt.level";
 // Current pipeline phase, read by the overlay to pick label/color.
@@ -142,7 +193,7 @@ const kv = {
   },
 };
 
-stt.configureSttRuntime(OPTIONS, logger);
+applyModelOverrides();
 const { complete } = createClient(OPTIONS, logger);
 
 let processing = false;
@@ -341,18 +392,18 @@ function checkDeps() {
   const missing = Object.entries(files)
     .filter(([, p]) => !p || !fs.existsSync(p))
     .map(([k]) => k);
-  return { ok: missing.length === 0, missing };
+  return { ok: missing.length === 0, missing, active: activeModels() };
 }
 
 const server = http.createServer(async (req, res) => {
-  const path = new URL(req.url, "http://127.0.0.1").pathname;
+  const reqPath = new URL(req.url, "http://127.0.0.1").pathname;
   const method = req.method;
 
   try {
-    if (method === "GET" && path === "/health") {
+    if (method === "GET" && reqPath === "/health") {
       return send(res, 200, { ok: true, recording, processing, warm, phase, deps: checkDeps() });
     }
-    if (method === "POST" && path === "/start") {
+    if (method === "POST" && reqPath === "/start") {
       if (recording || processing) return send(res, 200, { ok: true, recording });
       await ensureHost();
       await hostCmd(`start ${stt.getSttWavPath()} ${LEVEL_PATH}`);
@@ -366,7 +417,7 @@ const server = http.createServer(async (req, res) => {
         .catch((e) => logger.log("VOICE", `pre-warm qwen failed: ${e.message}`, "warn"));
       return send(res, 200, { ok: true, recording: true });
     }
-    if (method === "POST" && path === "/stop") {
+    if (method === "POST" && reqPath === "/stop") {
       if (processing) return send(res, 200, { ok: false, error: "busy" });
       if (!recording) return send(res, 200, { ok: false, error: "not-recording" });
       pipelineSeq += 1;
@@ -375,13 +426,13 @@ const server = http.createServer(async (req, res) => {
       void runPipeline(seq);
       return send(res, 200, { ok: true, started: true, seq });
     }
-    if (method === "GET" && path === "/result") {
+    if (method === "GET" && reqPath === "/result") {
       const seq = Number(new URL(req.url, "http://127.0.0.1").searchParams.get("seq"));
       const r = RESULTS.get(seq);
       if (!r) return send(res, 404, { ok: false, error: "unknown-seq" });
       return send(res, 200, { ok: true, ...r });
     }
-    if (method === "POST" && path === "/cancel") {
+    if (method === "POST" && reqPath === "/cancel") {
       if (recording) {
         await hostCmd("stop");
         recording = false;
@@ -390,12 +441,12 @@ const server = http.createServer(async (req, res) => {
       stt.markSttIdle();
       return send(res, 200, { ok: true, cancelled: true });
     }
-    if (method === "POST" && path === "/kill") {
+    if (method === "POST" && reqPath === "/kill") {
       clearIdle();
       killServers();
       return send(res, 200, { ok: true });
     }
-    if (method === "POST" && path === "/warm") {
+    if (method === "POST" && reqPath === "/warm") {
       const body = await readBody(req);
       warm = Boolean(body.enabled);
       if (warm) {
@@ -405,6 +456,50 @@ const server = http.createServer(async (req, res) => {
         scheduleIdleKill();
       }
       return send(res, 200, { ok: true, warm });
+    }
+    if (method === "POST" && reqPath === "/models") {
+      const body = await readBody(req);
+      const slot = String(body.slot || "");
+      const file = String(body.file || "");
+      const known = ["parakeet", "s1", "qwen"];
+      if (!known.includes(slot)) return send(res, 400, { ok: false, error: "unknown-slot" });
+      if (!file) {
+        delete MODEL_OVERRIDES[slot]; // back to the installer default
+      } else {
+        if (file.includes("/") || file.includes("\\") || file.includes(".."))
+          return send(res, 400, { ok: false, error: "bad-filename" });
+        const wantExt = slot === "parakeet" ? ".bin" : ".gguf";
+        if (!file.toLowerCase().endsWith(wantExt))
+          return send(res, 400, { ok: false, error: `expected-${wantExt}` });
+        const full = path.join(MODELS_DIR, file);
+        let st;
+        try {
+          st = fs.statSync(full);
+        } catch {
+          return send(res, 404, { ok: false, error: "not-found" });
+        }
+        if (!st.isFile() || st.size < 1024 * 1024)
+          return send(res, 400, { ok: false, error: "bad-file" });
+        if (wantExt === ".gguf") {
+          const fd = fs.openSync(full, "r");
+          const head = Buffer.alloc(4);
+          fs.readSync(fd, head, 0, 4, 0);
+          fs.closeSync(fd);
+          if (head.toString("ascii") !== "GGUF")
+            return send(res, 400, { ok: false, error: "not-gguf" });
+        }
+        if (st.size > 3 * 1024 * 1024 * 1024 && body.confirmed !== true)
+          return send(res, 400, { ok: false, error: "too-big-confirm", size: st.size });
+        MODEL_OVERRIDES[slot] = file;
+      }
+      try {
+        fs.mkdirSync(stateDir(), { recursive: true });
+        fs.writeFileSync(path.join(stateDir(), "models.override.json"), JSON.stringify(MODEL_OVERRIDES, null, 2));
+      } catch (e) {
+        return send(res, 500, { ok: false, error: e.message });
+      }
+      applyModelOverrides(slot);
+      return send(res, 200, { ok: true, active: activeModels() });
     }
     return send(res, 404, { ok: false, error: "not-found" });
   } catch (e) {

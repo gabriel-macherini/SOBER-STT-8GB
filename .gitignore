@@ -10,5 +10,8 @@ dist/
 installer/generated-downloads.iss
 installer/generated-downloads-defs.iss
 
+# Captured test audio (large; raws live in pipeline.json for prompt tests).
+test/captures/*/*.wav
+
 # Debug leftovers.
 *.log

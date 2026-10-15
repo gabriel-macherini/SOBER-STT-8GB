@@ -1,7 +1,7 @@
 # Manual torture script v2 (PT-BR, ~2 min)
 
 Same protocol as v1: read aloud in **one** hold, paste into Notepad, then
-compare. `raw` vs `text` land in `%TEMP%\opencode-stt.last.json`.
+compare. `raw` vs `text` land in `%TEMP%\sober-stt.last.json`.
 
 ## BASE TEXT (read aloud)
 

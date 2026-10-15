@@ -3,7 +3,7 @@
 Persistent
 
 ; ============================================================================
-; OpenCode Voice - tray app
+; SOBER-STT - tray app
 ;
 ; While this script runs, CapsLock gains a "double-tap and hold" gesture to
 ; record. CapsLock keeps working normally (~ prefix = key passes through).
@@ -46,9 +46,9 @@ COL_REC := "0x3FB950"   ; green
 COL_TRA := "0xF5A623"   ; orange
 COL_NOR := "0x4C9AFF"   ; blue
 
-LOGF := A_Temp "\voice-tray.log"
-LEVELF := A_Temp "\opencode-stt.level"
-PHASEF := A_Temp "\opencode-stt.phase"
+LOGF := A_Temp "\sober-tray.log"
+LEVELF := A_Temp "\sober-stt.level"
+PHASEF := A_Temp "\sober-stt.phase"
 ; Persisted toggles live outside the install folder (which may be read-only).
 STATE_DIR := EnvGet("APPDATA") . "\SOBER-STT-8GB"
 WARMF := STATE_DIR "\warm.state"   ; "1" = keep models loaded
@@ -101,7 +101,7 @@ global OVL_COLOR := ""
 global OVL_TICK := 0
 global POLL_SEQ := 0
 global POLL_N := 0
-; Gesture debug log in %TEMP%\voice-tray.log. Off by default.
+; Gesture debug log in %TEMP%\sober-tray.log. Off by default.
 global VOICE_DEBUG := false
 
 Dbg(m) {

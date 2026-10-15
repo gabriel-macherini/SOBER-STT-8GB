@@ -2,7 +2,7 @@
 
 Read the BASE TEXT aloud in **one** hold (tests duration + long input).
 Paste into Notepad, then compare against this file: `raw` vs `text` land in
-`%TEMP%\opencode-stt.last.json` after every dictation.
+`%TEMP%\sober-stt.last.json` after every dictation.
 
 ## BASE TEXT (read aloud)
 

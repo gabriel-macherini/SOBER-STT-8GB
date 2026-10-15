@@ -1,4 +1,4 @@
-// Standalone OpenCode Voice runner.
+// Standalone SOBER-STT runner.
 //
 // Exposes the STT pipeline (reused from the opencode-voice plugin's lib/) over a
 // tiny local HTTP API, so the AHK tray app can drive it from any focused window.
@@ -131,14 +131,14 @@ function applyModelOverrides(killSlot) {
 }
 
 // Mic level file, read by the overlay in voice-tray.ahk.
-const LEVEL_PATH = OPTIONS.tmpDir + "/opencode-stt.level";
+const LEVEL_PATH = OPTIONS.tmpDir + "/sober-stt.level";
 // Current pipeline phase, read by the overlay to pick label/color.
-const PHASE_PATH = OPTIONS.tmpDir + "/opencode-stt.phase";
+const PHASE_PATH = OPTIONS.tmpDir + "/sober-stt.phase";
 // Last pipeline results by seq, so the tray app can poll without blocking.
 const RESULTS = new Map();
 let pipelineSeq = 0;
 // Last pipeline I/O, for debugging what was heard vs produced.
-const LAST_PATH = OPTIONS.tmpDir + "/opencode-stt.last.json";
+const LAST_PATH = OPTIONS.tmpDir + "/sober-stt.last.json";
 function writeLast(payload) {
   try {
     fs.writeFileSync(LAST_PATH, JSON.stringify(payload));

@@ -46,7 +46,7 @@ Requires Windows 10/11 x64 and (for good speed) an NVIDIA GPU with a CUDA driver
 2. Speak. The overlay shows live mic bars.
 3. Release. The cleaned text is pasted where your cursor is.
 
-Right-click the tray icon → **Sair** to quit (frees VRAM immediately).
+Right-click the tray icon → **Exit** to quit (frees VRAM immediately).
 
 ## 🖥️ Setup this was developed for
 
@@ -85,9 +85,9 @@ Gesture/overlay knobs still live at the top of `voice-tray.ahk`:
 | `TAP_MAX` / `GAP` / `HOLD_MIN` | 400 / 800 / 200 ms | Gesture timing |
 | `BARS` / `BARW` / `BARGAP` / `BARH` | 17 / 4 / 5 / 30 | Overlay bar geometry |
 | `COL_REC` / `COL_TRA` / `COL_NOR` | green / orange / blue | Phase colors |
-| `VOICE_DEBUG` | `false` | Gesture log in `%TEMP%\voice-tray.log` |
+| `VOICE_DEBUG` | `false` | Gesture log in `%TEMP%\sober-tray.log` |
 
-Tray menu: **Manter modelos carregados** + **Iniciar com o Windows** (persisted in `%APPDATA%\SOBER-STT-8GB\` / `HKCU\...\Run`), **Trocar modelo**, **Abrir pasta**, **Ajuda**, **Sair** — plus a **Language** submenu (English / Português / Français / Español, persisted in `%APPDATA%\SOBER-STT-8GB\locale`). All three choices (warm, autostart, language) survive reboots.
+Tray menu: **Keep models loaded** + **Start with Windows** (persisted in `%APPDATA%\SOBER-STT-8GB\` / `HKCU\...\Run`), **Switch model**, **Open folder**, **Help**, **Exit** — plus a **Language** submenu (English / Português / Français / Español, persisted in `%APPDATA%\SOBER-STT-8GB\locale`). All three choices (warm, autostart, language) survive reboots. Labels shown here are English; the app follows the selected UI language.
 
 ### 🔀 Swapping models
 
@@ -99,7 +99,7 @@ Drop a `.gguf` (LLM) or `.bin` (Parakeet) into `models/` and pick it in **Trocar
 CapsLock (AHK tray app)
    │  double-tap-and-hold → POST /start
    ▼
-rec-host.ps1 ── mic ──► opencode-stt.wav (+ live level 0-100)
+rec-host.ps1 ── mic ──► sober-stt.wav (+ live level 0-100)
    │  release → POST /stop (async, returns {seq} at once)
    ▼
 parakeet-cli ──► raw text ──► s1 (EN) / Qwen (PT/FR) ──► cleaned text
@@ -144,7 +144,7 @@ MIT — see [LICENSE](LICENSE).
 
 ---
 
-## 🇧🇷 OpenCode Voice em português
+## 🇧🇷 SOBER-STT em português
 
 Ditada por voz push-to-talk para Windows. Toque duas vezes no **CapsLock** e segure, fale, solte — a fala é transcrita localmente, normalizada por um LLM local e colada na janela em foco. Sem nuvem, sem assinatura.
 

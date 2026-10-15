@@ -50,9 +50,9 @@ This repo's policy on top: pre-warm **qwen only** at record start
 
 ## Fresh-machine checklist
 
-1. Windows 10/11, Node 22+, AutoHotkey v2, NVIDIA CUDA-capable GPU.
-2. Parakeet model + CUDA `parakeet-cli` build; `llama-server` + s1/Qwen GGUFs.
-3. Clone `opencode-voice` next to this repo (the `LIB` import points there).
-4. Edit absolute paths at the top of `runner.mjs` (and `rec-host.ps1` if needed).
-5. Match `-t` / thread defaults to your core count; re-measure with the
+1. Windows 10/11, NVIDIA CUDA-capable GPU.
+2. Run the installer (models + CUDA binaries come from `installer/downloads.json`).
+3. Only for source runs: Node 22+, AutoHotkey v2, and a `config.local.json`
+   with your paths (see `config.json`); never commit it.
+4. Match `parakeetThreads` to your core count; re-measure with the
    table in [README](../README.md#measured-latencies-rtx-3070).

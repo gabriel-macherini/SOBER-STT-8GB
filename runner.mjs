@@ -14,7 +14,6 @@
 //                          (slot: parakeet|s1|qwen, file: basename in models/
 //                          or "" for the installer default; persists per machine)
 //   POST /chunk {enabled}   chunk long dictations before normalizing
-//   POST /listcont {enabled} carry list numbering across chunks
 //   GET  /health           { ok, recording, processing, warm, deps }
 //
 // Recording uses a persistent PowerShell host (rec-host.ps1) that compiles the
@@ -74,7 +73,6 @@ const OPTIONS = {
   s1Endpoint: `http://127.0.0.1:${CONFIG.s1Port || 8080}/v1`,
   qwenEndpoint: `http://127.0.0.1:${CONFIG.qwenPort || 8081}/v1`,
   chunking: true,
-  listContinue: false,
 };
 llmServers.configureLocalLlm({
   llamaBin: resolvePath(CONFIG.llamaBin),
@@ -469,12 +467,6 @@ const server = http.createServer(async (req, res) => {
       OPTIONS.chunking = body.enabled !== false;
       stt.configureSttRuntime(OPTIONS, logger);
       return send(res, 200, { ok: true, chunking: OPTIONS.chunking });
-    }
-    if (method === "POST" && reqPath === "/listcont") {
-      const body = await readBody(req);
-      OPTIONS.listContinue = body.enabled === true;
-      stt.configureSttRuntime(OPTIONS, logger);
-      return send(res, 200, { ok: true, listContinue: OPTIONS.listContinue });
     }
     if (method === "POST" && reqPath === "/models") {
       const body = await readBody(req);

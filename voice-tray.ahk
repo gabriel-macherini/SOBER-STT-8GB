@@ -58,7 +58,6 @@ REG_NAME := "SOBER-STT"
 #Include locale.ahk
 LOCALEF := STATE_DIR "\locale"
 CHUNKF := STATE_DIR "\chunk.state"   ; "0" = single-call mode (default: chunks on)
-LISTCF := STATE_DIR "\listcont.state"   ; "1" = carry list numbers across chunks
 global ActiveLang := "en"
 
 ; UI language lookup with English fallback.
@@ -91,7 +90,6 @@ SetLanguage(code, *) {
 global runnerPID := 0
 global warm := false
 global chunking := true
-global listcont := false
 global lastTapUp := 0
 global armed := false
 global downTime := 0
@@ -270,7 +268,6 @@ DoStart() {
     Dbg("DoStart")
     if (HttpPost("/start") = "") {
         SetState("idle")
-        TrayTip("OpenCode Voice", T("tip.norunner"), 2)
     } else {
         SetState("rec")
     }
@@ -293,8 +290,6 @@ DoPipeline() {
         SetTimer(PollResult, 150)
     } else {
         SetState("idle")
-        msg := InStr(resp, "no-speech") ? T("tip.nospeech") : "Falha: " . resp
-        TrayTip("OpenCode Voice", msg, 2)
     }
 }
 
@@ -306,15 +301,12 @@ PollResult(*) {
         SetTimer(PollResult, 0)
         SetState("idle")
         if (InStr(r, '"ok":false')) {
-            msg := InStr(r, "no-speech") ? T("tip.nospeech") : T("tip.failed")
-            TrayTip("OpenCode Voice", msg, 2)
         }
         return
     }
     if (POLL_N > 1200) {
         SetTimer(PollResult, 0)
         SetState("idle")
-        TrayTip("OpenCode Voice", T("tip.timeout"), 2)
     }
 }
 
@@ -331,7 +323,6 @@ StartRunner() {
         if (HttpGet("/health") != "")
             return
     }
-    TrayTip("OpenCode Voice", T("tip.noserver"), 3)
 }
 
 StopRunner() {
@@ -362,10 +353,8 @@ ToggleWarm(*) {
     HttpPost("/warm", 5000, warm ? '{"enabled":true}' : '{"enabled":false}')
     if (warm) {
         A_TrayMenu.Check(T("menu.warm"))
-        TrayTip("OpenCode Voice", T("tip.warm.on"), 1)
     } else {
         A_TrayMenu.Uncheck(T("menu.warm"))
-        TrayTip("OpenCode Voice", T("tip.warm.off"), 1)
     }
 }
 
@@ -396,10 +385,8 @@ ToggleAutostart(*) {
     SetAutostart(enable)
     if (enable) {
         A_TrayMenu.Check(T("menu.autostart"))
-        TrayTip("OpenCode Voice", T("tip.auto.on"), 1)
     } else {
         A_TrayMenu.Uncheck(T("menu.autostart"))
-        TrayTip("OpenCode Voice", T("tip.auto.off"), 1)
     }
 }
 
@@ -416,30 +403,8 @@ ToggleChunk(*) {
     HttpPost("/chunk", 5000, chunking ? '{"enabled":true}' : '{"enabled":false}')
     if (chunking) {
         A_TrayMenu.Check(T("menu.chunk"))
-        TrayTip("OpenCode Voice", T("tip.chunk.on"), 1)
     } else {
         A_TrayMenu.Uncheck(T("menu.chunk"))
-        TrayTip("OpenCode Voice", T("tip.chunk.off"), 1)
-    }
-}
-
-ToggleListCont(*) {
-    global listcont, STATE_DIR, LISTCF
-    listcont := !listcont
-    try {
-        if (!DirExist(STATE_DIR))
-            DirCreate(STATE_DIR)
-        try FileDelete(LISTCF)
-        FileAppend(listcont ? "1" : "0", LISTCF)
-    } catch {
-    }
-    HttpPost("/listcont", 5000, listcont ? '{"enabled":true}' : '{"enabled":false}')
-    if (listcont) {
-        A_TrayMenu.Check(T("menu.listcont"))
-        TrayTip("OpenCode Voice", T("tip.list.on"), 1)
-    } else {
-        A_TrayMenu.Uncheck(T("menu.listcont"))
-        TrayTip("OpenCode Voice", T("tip.list.off"), 1)
     }
 }
 
@@ -508,19 +473,13 @@ SwitchModel(slot, file, *) {
     r := HttpPost("/models", 8000, '{"slot":"' . slot . '","file":"' . file . '"}')
     if (InStr(r, '"ok":true')) {
         RefreshModelsMenu()
-        TrayTip("OpenCode Voice", file = "" ? T("tip.model.def") : T("tip.model.on") . file, 1)
     } else if (InStr(r, "too-big-confirm")) {
         if (MsgBox(T("msg.bigmodel"), "SOBER-STT", "YesNo Icon!") = "Yes") {
             r2 := HttpPost("/models", 8000, '{"slot":"' . slot . '","file":"' . file . '","confirmed":true}')
             if (InStr(r2, '"ok":true')) {
                 RefreshModelsMenu()
-                TrayTip("OpenCode Voice", T("tip.model.on") . file, 1)
-            } else {
-                TrayTip("OpenCode Voice", T("tip.model.no"), 2)
             }
         }
-    } else {
-        TrayTip("OpenCode Voice", T("tip.model.no"), 2)
     }
 }
 
@@ -536,7 +495,6 @@ BuildTrayMenu() {
     A_TrayMenu.Add(T("menu.warm"), ToggleWarm)
     A_TrayMenu.Add(T("menu.autostart"), ToggleAutostart)
     A_TrayMenu.Add(T("menu.chunk"), ToggleChunk)
-    A_TrayMenu.Add(T("menu.listcont"), ToggleListCont)
     ModelsMenu.Delete()
     ModelsMenu.Add(T("slot.stt"), SubParakeet)
     ModelsMenu.Add(T("slot.s1"), SubS1)
@@ -561,8 +519,6 @@ BuildTrayMenu() {
         A_TrayMenu.Check(T("menu.autostart"))
     if (chunking)
         A_TrayMenu.Check(T("menu.chunk"))
-    if (listcont)
-        A_TrayMenu.Check(T("menu.listcont"))
 }
 
 ; ---- Gesture: double-tap and hold CapsLock ---------------------------------
@@ -632,7 +588,7 @@ try {
     }
 } catch {
 }
-; Chunks default on (no file = on); list continuation defaults off.
+; Chunks default on (no file = on).
 try {
     if (FileExist(CHUNKF) && Trim(FileRead(CHUNKF)) = "0") {
         chunking := false
@@ -641,14 +597,5 @@ try {
     }
 } catch {
 }
-try {
-    if (FileExist(LISTCF) && Trim(FileRead(LISTCF)) = "1") {
-        listcont := true
-        HttpPost("/listcont", 5000, '{"enabled":true}')
-        A_TrayMenu.Check(T("menu.listcont"))
-    }
-} catch {
-}
 RefreshModelsMenu()
 SetState("idle")
-TrayTip("OpenCode Voice", T("tip.boot"), 1)

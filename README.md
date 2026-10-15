@@ -23,9 +23,7 @@ Push-to-talk voice dictation for Windows. Double-tap and hold **CapsLock**, spea
 
 ## 📦 Install (end user)
 
-Download `SOBER-STT-Setup-*.exe` from Releases and run it. The setup is
-unsigned, so SmartScreen shows "Windows protected your PC": click
-**More info → Run anyway** (verify the file came from this repo's Releases page). One click:
+Download `SOBER-STT-Setup-*.exe` from Releases and run it. One click:
 
 1. Pick a folder (default `%LocalAppData%\SOBER-STT-8GB`, no admin needed).
 2. Pick a language (English / Português / Français / Español) — it seeds the app's UI language.

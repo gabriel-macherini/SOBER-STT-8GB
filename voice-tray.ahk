@@ -57,6 +57,8 @@ REG_NAME := "SOBER-STT"
 
 #Include locale.ahk
 LOCALEF := STATE_DIR "\locale"
+CHUNKF := STATE_DIR "\chunk.state"   ; "0" = single-call mode (default: chunks on)
+LISTCF := STATE_DIR "\listcont.state"   ; "1" = carry list numbers across chunks
 global ActiveLang := "en"
 
 ; UI language lookup with English fallback.
@@ -88,6 +90,8 @@ SetLanguage(code, *) {
 
 global runnerPID := 0
 global warm := false
+global chunking := true
+global listcont := false
 global lastTapUp := 0
 global armed := false
 global downTime := 0
@@ -399,6 +403,46 @@ ToggleAutostart(*) {
     }
 }
 
+ToggleChunk(*) {
+    global chunking, STATE_DIR, CHUNKF
+    chunking := !chunking
+    try {
+        if (!DirExist(STATE_DIR))
+            DirCreate(STATE_DIR)
+        try FileDelete(CHUNKF)
+        FileAppend(chunking ? "1" : "0", CHUNKF)
+    } catch {
+    }
+    HttpPost("/chunk", 5000, chunking ? '{"enabled":true}' : '{"enabled":false}')
+    if (chunking) {
+        A_TrayMenu.Check(T("menu.chunk"))
+        TrayTip("OpenCode Voice", T("tip.chunk.on"), 1)
+    } else {
+        A_TrayMenu.Uncheck(T("menu.chunk"))
+        TrayTip("OpenCode Voice", T("tip.chunk.off"), 1)
+    }
+}
+
+ToggleListCont(*) {
+    global listcont, STATE_DIR, LISTCF
+    listcont := !listcont
+    try {
+        if (!DirExist(STATE_DIR))
+            DirCreate(STATE_DIR)
+        try FileDelete(LISTCF)
+        FileAppend(listcont ? "1" : "0", LISTCF)
+    } catch {
+    }
+    HttpPost("/listcont", 5000, listcont ? '{"enabled":true}' : '{"enabled":false}')
+    if (listcont) {
+        A_TrayMenu.Check(T("menu.listcont"))
+        TrayTip("OpenCode Voice", T("tip.list.on"), 1)
+    } else {
+        A_TrayMenu.Uncheck(T("menu.listcont"))
+        TrayTip("OpenCode Voice", T("tip.list.off"), 1)
+    }
+}
+
 ; ---- Help ---------------------------------------------------------------
 ; Small window (not MsgBox) so the GitHub URL is a real clickable link.
 ; Private -> public keeps the same URL as long as owner/name don't change.
@@ -491,6 +535,8 @@ BuildTrayMenu() {
     A_TrayMenu.Delete()
     A_TrayMenu.Add(T("menu.warm"), ToggleWarm)
     A_TrayMenu.Add(T("menu.autostart"), ToggleAutostart)
+    A_TrayMenu.Add(T("menu.chunk"), ToggleChunk)
+    A_TrayMenu.Add(T("menu.listcont"), ToggleListCont)
     ModelsMenu.Delete()
     ModelsMenu.Add(T("slot.stt"), SubParakeet)
     ModelsMenu.Add(T("slot.s1"), SubS1)
@@ -513,6 +559,10 @@ BuildTrayMenu() {
         A_TrayMenu.Check(T("menu.warm"))
     if (IsAutostart())
         A_TrayMenu.Check(T("menu.autostart"))
+    if (chunking)
+        A_TrayMenu.Check(T("menu.chunk"))
+    if (listcont)
+        A_TrayMenu.Check(T("menu.listcont"))
 }
 
 ; ---- Gesture: double-tap and hold CapsLock ---------------------------------
@@ -579,6 +629,23 @@ try {
         warm := true
         HttpPost("/warm", 5000, '{"enabled":true}')
         A_TrayMenu.Check(T("menu.warm"))
+    }
+} catch {
+}
+; Chunks default on (no file = on); list continuation defaults off.
+try {
+    if (FileExist(CHUNKF) && Trim(FileRead(CHUNKF)) = "0") {
+        chunking := false
+        HttpPost("/chunk", 5000, '{"enabled":false}')
+        A_TrayMenu.Uncheck(T("menu.chunk"))
+    }
+} catch {
+}
+try {
+    if (FileExist(LISTCF) && Trim(FileRead(LISTCF)) = "1") {
+        listcont := true
+        HttpPost("/listcont", 5000, '{"enabled":true}')
+        A_TrayMenu.Check(T("menu.listcont"))
     }
 } catch {
 }

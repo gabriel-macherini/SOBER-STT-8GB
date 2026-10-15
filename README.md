@@ -138,6 +138,8 @@ pwsh tools/build-installer.ps1  # dist/SOBER-STT-Setup-1.0.0.exe
 
 Download versions are pinned in `installer/downloads.json` (single source of truth — the wizard lists them verbatim). Bump a version there and rebuild.
 
+Releasing: bump `AppVersion` in `installer/sober-stt.iss`, add a `CHANGELOG.md` section, rebuild, commit, then `git tag -a vX.Y.Z` + `gh release create vX.Y.Z --notes-file - dist/SOBER-STT-Setup-X.Y.Z.exe`.
+
 ## 📄 License
 
 MIT — see [LICENSE](LICENSE).

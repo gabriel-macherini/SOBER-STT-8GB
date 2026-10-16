@@ -31,7 +31,7 @@ SetupIconFile=..\voice-idle.ico
 UninstallDisplayIcon={app}\SOBER-STT.exe
 ; Real disk need: staged app + everything in downloads.json (installed size)
 ExtraDiskSpaceRequired={#DownloadTotalBytes}
-; ~4.5 GB of downloads; allow resuming a slow first install
+; ~5 GB to download, ~6 GB on disk; allow resuming a slow first install
 AllowCancelDuringInstall=yes
 
 [Languages]

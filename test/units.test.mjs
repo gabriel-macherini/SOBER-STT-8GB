@@ -121,6 +121,7 @@ describe("prompt sync (B8)", () => {
   it("lib fallback matches the canonical .md (doc block stripped)", () => {
     const md = fs
       .readFileSync(path.join(ROOT, "../prompts/stt-system-prompt.md"), "utf8")
+      .replace(/\r\n/g, "\n")
       .replace(/^<!--[\s\S]*?-->\s*/, "")
       .replace(/\s+$/, "");
     assert.equal(STT_SYSTEM_PROMPT, md);

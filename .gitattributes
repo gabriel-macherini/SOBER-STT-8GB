@@ -1,0 +1,4 @@
+# Keep the prompt comparison EOL-proof: the sync test compares against
+# STT_SYSTEM_PROMPT (\n), so this file always checks out with LF even when
+# core.autocrlf is true on Windows.
+prompts/stt-system-prompt.md text eol=lf

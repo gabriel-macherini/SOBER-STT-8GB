@@ -18,7 +18,7 @@ if (!$ISCC) {
 }
 if (!$ISCC) { throw "ISCC not found (winget install JRSoftware.InnoSetup)" }
 
-$manifest = Get-Content (Join-Path $INSTALLER "downloads.json") -Raw | ConvertFrom-Json
+$manifest = Get-Content (Join-Path $INSTALLER "downloads.json") -Raw -Encoding utf8 | ConvertFrom-Json
 $items = $manifest.items
 
 function Q($s) { return ($s -replace "'", "''") }

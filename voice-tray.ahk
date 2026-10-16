@@ -65,8 +65,24 @@ COL_TRA := "0xF5A623"   ; orange
 COL_NOR := "0x4C9AFF"   ; blue
 
 LOGF := A_Temp "\sober-tray.log"
+; P2: level/phase live where the runner writes them (tmpDir, %TEMP% by
+; default). Refreshed from /health at boot; A_Temp is only the fallback.
 LEVELF := A_Temp "\sober-stt.level"
 PHASEF := A_Temp "\sober-stt.phase"
+RefreshTmpPaths() {
+    global LEVELF, PHASEF
+    try {
+        h := HttpGet("/health")
+        if (RegExMatch(h, '"tmpDir"\s*:\s*"((?:[^"\\]|\\.)*)"', &m)) {
+            dir := StrReplace(m[1], "\\", "\")
+            if (dir != "") {
+                LEVELF := dir "\sober-stt.level"
+                PHASEF := dir "\sober-stt.phase"
+            }
+        }
+    } catch {
+    }
+}
 ; Persisted toggles live outside the install folder (which may be read-only).
 STATE_DIR := EnvGet("APPDATA") . "\SOBER-STT-8GB"
 WARMF := STATE_DIR "\warm.state"   ; "1" = keep models loaded
@@ -690,6 +706,7 @@ OnExit((*) => (StopRunner(), 0))
 try FileDelete(LOGF)
 Dbg("boot")
 StartRunner()
+RefreshTmpPaths()
 ; Restore persisted choices: warm toggle, UI language, autostart check.
 ; (Autostart itself lives in HKCU\...\Run; here we only re-check the menu.)
 ; Migrates the pre-installer warm.state that lived next to the script.

@@ -176,7 +176,7 @@ The runner listens on loopback only (`127.0.0.1:8791`, see `runnerPort`) and req
 |---|---|
 | SmartScreen blocks the installer | Unsigned build: More info → Run anyway |
 | Nothing records | Settings > Privacy > Microphone: allow desktop apps; check the Windows default input |
-| Port conflict | Set `runnerPort` in `config.json` (or `config.local.json`); check with `GET /health` |
+| Port conflict | Set `runnerPort` in `config.json` (or `config.local.json`); check with `GET /health` (needs the `X-SOBER-Token` header — read it from `%TEMP%\sober-stt.token`): `Invoke-WebRequest http://127.0.0.1:8791/health -Headers @{'X-SOBER-Token'=(Get-Content $env:TEMP\sober-stt.token -Raw).Trim()}` |
 | Text didn't paste | Open `%TEMP%\sober-stt.last.json` (`raw` = heard, `text` = pasted, `error` = why not); tray menu → Copy last transcript |
 | Runner log | `<tmpDir>\sober-stt.log` (or `%TEMP%` by default); gesture log in `%TEMP%\sober-tray.log` with `VOICE_DEBUG` on |
 
@@ -197,7 +197,7 @@ pwsh tools/build-installer.ps1  # dist/SOBER-STT-Setup-1.0.2.exe
 
 Download versions are pinned in `installer/downloads.json` (single source of truth — the wizard lists them verbatim). Bump a version there and rebuild. `version.txt` is the version source of truth: `tools/check-version.mjs` (CI) fails if the installer `AppVersion`, CHANGELOG header, README example, or tray `APPVER` drift from it.
 
-Releasing: bump `AppVersion` in `installer/sober-stt.iss`, add a `CHANGELOG.md` section, rebuild, commit, then `git tag -a vX.Y.Z` + `gh release create vX.Y.Z --notes-file - dist/SOBER-STT-Setup-X.Y.Z.exe`. Publish only that version's CHANGELOG section in the release notes, plus the installer SHA-256. Pushing a `v*` tag also triggers the `release` workflow, which runs tests, builds portable + installer, and publishes the release automatically (notes = CHANGELOG section + SHA-256).
+Releasing: bump `version.txt`, add a `CHANGELOG.md` section, rebuild, commit, then `git tag -a vX.Y.Z` + `gh release create vX.Y.Z --notes-file - dist/SOBER-STT-Setup-X.Y.Z.exe` (`tools/check-version.mjs` enforces version.txt == installer AppVersion == CHANGELOG == README == tray APPVER). Publish only that version's CHANGELOG section in the release notes, plus the installer SHA-256. Pushing a `v*` tag also triggers the `release` workflow, which runs tests, builds portable + installer, and publishes the release automatically (notes = CHANGELOG section + SHA-256).
 
 ## 🗑️ Uninstall
 
@@ -228,7 +228,7 @@ Ditada por voz push-to-talk para Windows. Toque duas vezes no **CapsLock** e seg
 
 ### 📦 Instalação
 
-Baixe o `SOBER-STT-Setup-*.exe` em Releases e execute. Escolha a pasta, o idioma (English / Português / Français / Español), marque ícone na Área de Trabalho / Menu Iniciar e **Iniciar com o Windows** se quiser; o assistente checa sua GPU (NVIDIA com 6+ GB de VRAM recomendado, avisa se for antiga/fraca/ausente), baixa os modelos e binários (lista com versões em `installer/downloads.json`, ~5 GB de download, ~6 GB em disco) e deixa pronto para ditar. Sem Node, AutoHotkey ou clone na máquina alvo.
+Baixe o `SOBER-STT-Setup-*.exe` em [Releases](https://github.com/gabriel-macherini/SOBER-STT-8GB/releases/latest) e execute. Escolha a pasta, o idioma (English / Português / Français / Español), marque ícone na Área de Trabalho / Menu Iniciar e **Iniciar com o Windows** se quiser; o assistente checa sua GPU (NVIDIA com 6+ GB de VRAM recomendado, avisa se for antiga/fraca/ausente), baixa os modelos e binários (lista com versões em `installer/downloads.json`, ~5 GB de download, ~6 GB em disco) e deixa pronto para ditar. Sem Node, AutoHotkey ou clone na máquina alvo.
 
 ### 🚀 Início rápido (do código-fonte)
 
@@ -249,7 +249,7 @@ Botão direito no ícone da bandeja → **Sair** para encerrar (libera a VRAM na
 
 Para uso normal, prefira o instalador acima. Do código-fonte, monte o toolchain antes: Windows 10/11 com Node 22+ e AutoHotkey v2, mais binários + modelos no layout do `config.json` (ou sobrescreva em `config.local.json`). Aí rode o `voice-tray.ahk`, dois toques + segurar o CapsLock, falar.
 
-Menu da bandeja: **Manter modelos carregados** + **Iniciar com o Windows**, **Trocar modelo** (solte um `.gguf`/`.bin` em `models/` e selecione por função), **Abrir pasta**, **Ajuda**, **Sair** — mais o submenu **Idioma** (English / Português / Français / Español, lembrado entre reinicializações como os outros toggles).
+Menu da bandeja: **Manter modelos carregados** + **Iniciar com o Windows** + **Dividir textos longos** (ligado por padrão), **Trocar modelo** (solte um `.gguf`/`.bin` em `models/` e selecione por função), **Abrir pasta**, **Abrir pasta temporária**, **Copiar última transcrição**, **Ajuda** (mostra a versão), **Sair** — mais o submenu **Idioma** (English / Português / Français / Español, lembrado entre reinicializações como os outros toggles).
 
 ### 📄 Licença
 

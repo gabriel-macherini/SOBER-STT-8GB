@@ -2,14 +2,14 @@ param(
   # Fill installer/downloads.json "sha256" fields by downloading each item
   # and hashing it. Skips items already pinned. Run once per version bump;
   # the installer verifies these hashes at download time (S2).
+  # Requires pwsh 7+ (5.1 mangles UTF-8 manifests on read).
   #
   #   pwsh tools/fill-hashes.ps1
-  [string]$OutFile
 )
 $ErrorActionPreference = "Stop"
 $ROOT = Split-Path (Split-Path $MyInvocation.MyCommand.Path -Parent) -Parent
 $manifestPath = Join-Path $ROOT "installer/downloads.json"
-$manifest = Get-Content $manifestPath -Raw | ConvertFrom-Json
+$manifest = Get-Content $manifestPath -Raw -Encoding utf8 | ConvertFrom-Json
 $tmp = Join-Path ([IO.Path]::GetTempPath()) "sober-stt-hashes"
 New-Item -ItemType Directory -Force $tmp | Out-Null
 $changed = $false

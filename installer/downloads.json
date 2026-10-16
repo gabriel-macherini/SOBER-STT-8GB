@@ -3,8 +3,8 @@
     "items":  [
                   {
                       "id":  "parakeet-model",
-                      "label":  "Modelo de transcriÃ§Ã£o Parakeet TDT v3 (Q8_0)",
-                      "label_pt":  "Modelo de transcriÃ§Ã£o Parakeet TDT v3 (Q8_0)",
+                      "label":  "Modelo de transcrição Parakeet TDT v3 (Q8_0)",
+                      "label_pt":  "Modelo de transcrição Parakeet TDT v3 (Q8_0)",
                       "version":  "ggml-org/parakeet-GGUF (669 MB)",
                       "file":  "ggml-parakeet-tdt-0.6b-v3-q8_0.bin",
                       "url":  "https://huggingface.co/ggml-org/parakeet-GGUF/resolve/main/ggml-parakeet-tdt-0.6b-v3-q8_0.bin",
@@ -14,13 +14,13 @@
                       "installedBytes":  668757119,
                       "sha256":  "4d64e9e96c2792186d072fde0034df0ad670cf680a2f53069052ead827fd600e",
                       "label_en":  "Parakeet TDT v3 transcription model (Q8_0)",
-                      "label_fr":  "ModÃ¨le de transcription Parakeet TDT v3 (Q8_0)",
-                      "label_es":  "Modelo de transcripciÃ³n Parakeet TDT v3 (Q8_0)"
+                      "label_fr":  "Modèle de transcription Parakeet TDT v3 (Q8_0)",
+                      "label_es":  "Modelo de transcripción Parakeet TDT v3 (Q8_0)"
                   },
                   {
                       "id":  "s1-model",
-                      "label":  "Modelo de normalizaÃ§Ã£o S1-mini EN (Q4_K_M)",
-                      "label_pt":  "Modelo de normalizaÃ§Ã£o S1-mini EN (Q4_K_M)",
+                      "label":  "Modelo de normalização S1-mini EN (Q4_K_M)",
+                      "label_pt":  "Modelo de normalização S1-mini EN (Q4_K_M)",
                       "version":  "superwhisper/s1-mini-GGUF (484 MB)",
                       "file":  "s1-mini-q4_k_m.gguf",
                       "url":  "https://huggingface.co/superwhisper/s1-mini-GGUF/resolve/main/s1-mini-q4_k_m.gguf",
@@ -30,13 +30,13 @@
                       "installedBytes":  484219808,
                       "sha256":  "3b41ebe2502cbd03e811d5d16b022f5ab551eda58d62597d152f89535003c634",
                       "label_en":  "S1-mini EN normalization model (Q4_K_M)",
-                      "label_fr":  "ModÃ¨le de normalisation S1-mini EN (Q4_K_M)",
-                      "label_es":  "Modelo de normalizaciÃ³n S1-mini EN (Q4_K_M)"
+                      "label_fr":  "Modèle de normalisation S1-mini EN (Q4_K_M)",
+                      "label_es":  "Modelo de normalización S1-mini EN (Q4_K_M)"
                   },
                   {
                       "id":  "qwen-model",
-                      "label":  "Modelo de normalizaÃ§Ã£o Qwen3-4B PT/FR (Q4_K_M)",
-                      "label_pt":  "Modelo de normalizaÃ§Ã£o Qwen3-4B PT/FR (Q4_K_M)",
+                      "label":  "Modelo de normalização Qwen3-4B PT/FR (Q4_K_M)",
+                      "label_pt":  "Modelo de normalização Qwen3-4B PT/FR (Q4_K_M)",
                       "version":  "Qwen/Qwen3-4B-GGUF (2.5 GB)",
                       "file":  "Qwen3-4B-Q4_K_M.gguf",
                       "url":  "https://huggingface.co/Qwen/Qwen3-4B-GGUF/resolve/main/Qwen3-4B-Q4_K_M.gguf",
@@ -46,8 +46,8 @@
                       "installedBytes":  2497280256,
                       "sha256":  "7485fe6f11af29433bc51cab58009521f205840f5b4ae3a32fa7f92e8534fdf5",
                       "label_en":  "Qwen3-4B PT/FR normalization model (Q4_K_M)",
-                      "label_fr":  "ModÃ¨le de normalisation Qwen3-4B PT/FR (Q4_K_M)",
-                      "label_es":  "Modelo de normalizaciÃ³n Qwen3-4B PT/FR (Q4_K_M)"
+                      "label_fr":  "Modèle de normalisation Qwen3-4B PT/FR (Q4_K_M)",
+                      "label_es":  "Modelo de normalización Qwen3-4B PT/FR (Q4_K_M)"
                   },
                   {
                       "id":  "llama-cpp",

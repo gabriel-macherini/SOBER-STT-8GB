@@ -308,11 +308,8 @@ function ensureHost() {
   });
   hostProc.stderr.on("data", (data) => logger.log("REC", String(data).trim(), "warn"));
   hostProc.on("error", dropHost);
-  hostProc.on("exit", () => {
-    hostProc = null;
-    hostReady = null;
-    recording = false;
-  });
+  // P9: a dead host must not leave commands hanging until the 15 s timeout.
+  hostProc.on("exit", () => dropHost());
   hostReady = new Promise((resolve) => hostPending.push(resolve));
   return hostReady;
 }
@@ -529,7 +526,10 @@ const server = http.createServer(async (req, res) => {
   try {
     // S1: loopback alone doesn't stop a web page (CORS blocks reading, not
     // sending). Require the loopback host, no Origin, and the per-boot token.
-    const host = String(req.headers.host || "").split(":")[0].toLowerCase().replace(/^\[|\]$/g, "");
+    // Brackets first: splitting "[::1]:8791" on ":" would leave "[".
+    let host = String(req.headers.host || "").toLowerCase();
+    const br = host.match(/^\[(.+)\](?::\d+)?$/);
+    host = (br ? br[1] : host.split(":")[0]).replace(/^\[|\]$/g, "");
     if (!["127.0.0.1", "localhost", "::1"].includes(host))
       return send(res, 403, { ok: false, error: "bad-host" });
     if (req.headers.origin) return send(res, 403, { ok: false, error: "origin-denied" });
@@ -549,7 +549,9 @@ const server = http.createServer(async (req, res) => {
     if (method === "POST" && reqPath === "/start") {
       if (recording || processing) return send(res, 200, { ok: true, recording });
       await ensureHost();
-      await hostCmd(JSON.stringify({ cmd: "start", wav: stt.getSttWavPath(), level: LEVEL_PATH }));
+      // P9: a host "err ..." reply is a failed start, not a recording.
+      const started = await hostCmd(JSON.stringify({ cmd: "start", wav: stt.getSttWavPath(), level: LEVEL_PATH }));
+      if (!String(started).startsWith("ok")) return send(res, 500, { ok: false, error: String(started) });
       recording = true;
       writePhase("recording");
       // Pre-warm qwen while parakeet transcribes (~1s): hides the ~1.5s cold

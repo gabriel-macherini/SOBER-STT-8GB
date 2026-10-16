@@ -34,7 +34,8 @@ Two processes, each simple:
   for `runnerPort`. No hardcoded machine paths (the one `C:/Users/the_s`
   left in `lib/stt.js` is dead plugin code).
 - Runtime state lives in `%APPDATA%\SOBER-STT-8GB` (warm/chunk/locale/model
-  overrides/token), never next to the script. Temp files
+  overrides/token), never next to the script. No hardcoded machine paths
+  (a stale absolute path left in `lib/stt.js` is dead plugin code). Temp files
   (`sober-stt.wav/.level/.phase/.last.json/.log`) live in `tmpDir`
   (`%TEMP%` by default); the WAV is deleted after every pipeline.
 - Never `await` the LLM pre-warm in `/start`, and always `.catch()` it: an

@@ -1,0 +1,40 @@
+name: release
+# Tag-driven release: `git tag -a vX.Y.Z && git push origin vX.Y.Z`
+# builds the portable + installer and publishes them on the GitHub release.
+on:
+  push:
+    tags:
+      - "v*"
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm test
+      - run: npm run check
+      - run: choco install autohotkey innosetup -y
+      - run: pwsh tools/build-portable.ps1
+      - run: pwsh tools/build-installer.ps1
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $ver = $tag.TrimStart("v")
+          $exe = "dist/SOBER-STT-Setup-$ver.exe"
+          if (!(Test-Path $exe)) { throw "missing $exe (version.txt vs tag mismatch?)" }
+          $notes = ".cache/release-notes.md"
+          New-Item -ItemType Directory -Force .cache | Out-Null
+          $log = Get-Content CHANGELOG.md -Raw
+          $m = [regex]::Match($log, "(?ms)^## \[$([regex]::Escape($ver))\].*?(?=^## \[|\z)")
+          ($m.Success ? $m.Value.Trim() : "Release $tag") | Set-Content $notes -Encoding UTF8NoBOM
+          $sha = (Get-FileHash $exe -Algorithm SHA256).Hash.ToLower()
+          Add-Content $notes ""
+          Add-Content $notes "SHA-256: $sha"
+          gh release create $tag $exe --title $tag --notes-file $notes

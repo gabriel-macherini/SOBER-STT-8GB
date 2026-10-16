@@ -28,7 +28,7 @@ $pas = New-Object System.Text.StringBuilder
 [void]$pas.AppendLine("const")
 [void]$pas.AppendLine("  DownloadCount = $($items.Count);")
 [void]$pas.AppendLine("")
-foreach ($fn in @("Label", "Version", "File", "Url", "DestSub", "CheckFile")) {
+foreach ($fn in @("Label", "Version", "File", "Url", "DestSub", "CheckFile", "Sha256")) {
   [void]$pas.AppendLine("function Download$fn(I: Integer): String;")
   [void]$pas.AppendLine("begin")
   [void]$pas.AppendLine("  case I of")
@@ -40,7 +40,9 @@ foreach ($fn in @("Label", "Version", "File", "Url", "DestSub", "CheckFile")) {
       "Url" { $items[$i].url }
       "DestSub" { $items[$i].dest }
       "CheckFile" { $items[$i].checkFile }
+      "Sha256" { $items[$i].sha256 }
     }
+    if ($null -eq $v) { $v = "" }
     [void]$pas.AppendLine("    ${i}: Result := '$(Q $v)';")
   }
   [void]$pas.AppendLine("  else Result := '';")

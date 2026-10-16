@@ -1,5 +1,6 @@
 # Build voice-idle.ico / voice-rec.ico / voice-proc.ico (variant C: mic inside a ring).
 # Draw with GDI+ and pack an .ico with PNG frames at 16/20/24/32/48/64/128.
+# Run from the repo root:  pwsh tools/make-icons.ps1  (writes next to voice-tray.ahk)
 $ErrorActionPreference = "Stop"
 Add-Type -AssemblyName System.Drawing
 
@@ -79,7 +80,7 @@ function Write-Ico([string]$path, [System.Drawing.Color]$color) {
 }
 
 foreach ($name in $states.Keys) {
-  $path = Join-Path $PSScriptRoot "voice-$name.ico"
+  $path = Join-Path (Split-Path $PSScriptRoot -Parent) "voice-$name.ico"
   Write-Ico -path $path -color $states[$name]
   $info = Get-Item $path
   "wrote $($info.Name) ($($info.Length) bytes)"

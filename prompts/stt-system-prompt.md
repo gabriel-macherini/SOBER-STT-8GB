@@ -1,5 +1,5 @@
 <!--
-  Canonical STT system prompt for SOBER-STT-8GB (voice-cli).
+  Canonical STT system prompt for SOBER-STT-8GB.
 
   Why this file exists: the default prompt in opencode-voice lib/stt.js is
   English-first and has no list rules, so Portuguese dictation came out as

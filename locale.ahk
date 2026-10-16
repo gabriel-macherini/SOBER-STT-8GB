@@ -19,6 +19,8 @@ global LANG := Map(
   "menu.exit", "Exit",
   "menu.lang", "Language",
   "menu.chunk", "Split long texts (chunks)",
+  "menu.temp", "Open temp folder",
+  "menu.copylast", "Copy last transcript",
   "ov.rec", "Recording",
   "ov.tra", "Transcribing...",
   "ov.nor", "Normalizing...",
@@ -26,8 +28,11 @@ global LANG := Map(
   "tip.rec", "SOBER-STT - recording (release to process)",
   "tip.proc", "SOBER-STT - processing...",
   "help.title", "SOBER-STT - Help",
-  "help.body", "SOBER-STT - local voice dictation (no cloud).`n`nHOW TO USE`nDouble-tap CapsLock and hold the second tap, speak, release.`nThe cleaned text is pasted where the cursor is.`nOverlay colors: green recording, orange transcribing, blue normalizing.`n`nMENU`n- Keep models loaded: never unloads the AI after 1 min idle.`n- Start with Windows: launches with the system.`n- Split long texts: chunks long dictations for better rules.`n- Switch model: uses a .gguf/.bin dropped in models/ instead of the default.`n`nCHECK THE NORMALIZATION`nAfter dictating, open %TEMP%\sober-stt.last.json:`nraw = what was heard, text = what was pasted,`nprompt = .md in use (see promptFile in config); `"lib`" = built-in fallback.",
-  "msg.bigmodel", "This model is over 3 GB and may exhaust the 8 GB VRAM. Use it anyway?"
+  "help.body", "SOBER-STT - local voice dictation (no cloud).`n`nHOW TO USE`nDouble-tap CapsLock and hold the second tap, speak, release.`nThe cleaned text is pasted where the cursor is.`nOverlay colors: green recording, orange transcribing, blue normalizing.`n`nMENU`n- Keep models loaded: never unloads the AI after 1 min idle.`n- Start with Windows: launches with the system.`n- Split long texts: chunks long dictations for better rules.`n- Switch model: uses a .gguf/.bin dropped in models/ instead of the default.`n`nCHECK THE NORMALIZATION`nAfter dictating, open %TEMP%\sober-stt.last.json:`nraw = what was heard, text = what was pasted,`nprompt = .md in use (see promptFile in config); `"lib`" = built-in fallback.`n`nCANCEL`nDouble-tap without holding, or Esc while recording, aborts.",
+  "msg.bigmodel", "This model is over 3 GB and may exhaust the 8 GB VRAM. Use it anyway?",
+  "msg.fail", "Dictation failed - try again",
+  "msg.nolast", "No transcript yet",
+  "msg.copied", "Last transcript copied"
 ),
 "pt", Map(
   "lang.name", "Português",
@@ -44,6 +49,8 @@ global LANG := Map(
   "menu.exit", "Sair",
   "menu.lang", "Idioma",
   "menu.chunk", "Dividir textos longos (chunks)",
+  "menu.temp", "Abrir pasta temporária",
+  "menu.copylast", "Copiar última transcrição",
   "ov.rec", "Gravando",
   "ov.tra", "Transcrevendo...",
   "ov.nor", "Normalizando...",
@@ -51,8 +58,11 @@ global LANG := Map(
   "tip.rec", "SOBER-STT - gravando (solte para processar)",
   "tip.proc", "SOBER-STT - processando...",
   "help.title", "SOBER-STT - Ajuda",
-  "help.body", "SOBER-STT - ditado por voz local (sem nuvem).`n`nCOMO USAR`nToque 2x no CapsLock e segure o segundo toque, fale, solte.`nO texto limpo é colado onde está o cursor.`nCores do overlay: verde gravando, laranja transcrevendo, azul normalizando.`n`nMENU`n- Manter modelos carregados: não descarrega a IA após 1 min parado.`n- Iniciar com o Windows: abre junto com o sistema.`n- Dividir textos longos: normaliza ditados longos em chunks.`n- Trocar modelo: usa um .gguf/.bin solto em modelos/ no lugar do padrão.`n`nCONFERIR A NORMALIZAÇÃO`nApós ditar, abra %TEMP%\sober-stt.last.json:`nraw = o que foi ouvido, text = o que foi colado,`nprompt = .md usado (ver promptFile no config); `"lib`" = embutido.",
-  "msg.bigmodel", "Este modelo tem mais de 3 GB e pode estourar a VRAM de 8 GB. Usar mesmo assim?"
+  "help.body", "SOBER-STT - ditado por voz local (sem nuvem).`n`nCOMO USAR`nToque 2x no CapsLock e segure o segundo toque, fale, solte.`nO texto limpo é colado onde está o cursor.`nCores do overlay: verde gravando, laranja transcrevendo, azul normalizando.`n`nMENU`n- Manter modelos carregados: não descarrega a IA após 1 min parado.`n- Iniciar com o Windows: abre junto com o sistema.`n- Dividir textos longos: normaliza ditados longos em chunks.`n- Trocar modelo: usa um .gguf/.bin solto em modelos/ no lugar do padrão.`n`nCONFERIR A NORMALIZAÇÃO`nApós ditar, abra %TEMP%\sober-stt.last.json:`nraw = o que foi ouvido, text = o que foi colado,`nprompt = .md usado (ver promptFile no config); `"lib`" = embutido.`n`nCANCELAR`nDois toques sem segurar, ou Esc gravando, cancela.",
+  "msg.bigmodel", "Este modelo tem mais de 3 GB e pode estourar a VRAM de 8 GB. Usar mesmo assim?",
+  "msg.fail", "Ditado falhou - tente de novo",
+  "msg.nolast", "Sem transcrição ainda",
+  "msg.copied", "Última transcrição copiada"
 ),
 "fr", Map(
   "lang.name", "Français",
@@ -69,6 +79,8 @@ global LANG := Map(
   "menu.exit", "Quitter",
   "menu.lang", "Langue",
   "menu.chunk", "Découper les longs textes",
+  "menu.temp", "Ouvrir le dossier temporaire",
+  "menu.copylast", "Copier la dernière transcription",
   "ov.rec", "Enregistrement",
   "ov.tra", "Transcription...",
   "ov.nor", "Normalisation...",
@@ -76,8 +88,11 @@ global LANG := Map(
   "tip.rec", "SOBER-STT - enregistrement (relâchez pour traiter)",
   "tip.proc", "SOBER-STT - traitement...",
   "help.title", "SOBER-STT - Aide",
-  "help.body", "SOBER-STT - dictée vocale locale (sans cloud).`n`nUTILISATION`nTouchez 2x CapsLock et maintenez la 2e pression, parlez, relâchez.`nLe texte nettoyé est collé où se trouve le curseur.`nCouleurs : vert enregistrement, orange transcription, bleu normalisation.`n`nMENU`n- Garder les modèles chargés : ne décharge jamais l'IA après 1 min.`n- Démarrer avec Windows : lance avec le système.`n- Découper les longs textes: normalise par blocs.`n- Changer de modèle : utilise un .gguf/.bin déposé dans models/.`n`nVÉRIFIER LA NORMALISATION`nAprès avoir dicté, ouvrez %TEMP%\sober-stt.last.json :`nraw = entendu, text = collé,`nprompt = .md utilisé (voir promptFile); `"lib`" = repli intégré.",
-  "msg.bigmodel", "Ce modèle dépasse 3 Go et peut saturer les 8 Go de VRAM. L'utiliser quand même ?"
+  "help.body", "SOBER-STT - dictée vocale locale (sans cloud).`n`nUTILISATION`nTouchez 2x CapsLock et maintenez la 2e pression, parlez, relâchez.`nLe texte nettoyé est collé où se trouve le curseur.`nCouleurs : vert enregistrement, orange transcription, bleu normalisation.`n`nMENU`n- Garder les modèles chargés : ne décharge jamais l'IA après 1 min.`n- Démarrer avec Windows : lance avec le système.`n- Découper les longs textes: normalise par blocs.`n- Changer de modèle : utilise un .gguf/.bin déposé dans models/.`n`nVÉRIFIER LA NORMALISATION`nAprès avoir dicté, ouvrez %TEMP%\sober-stt.last.json :`nraw = entendu, text = collé,`nprompt = .md utilisé (voir promptFile); `"lib`" = repli intégré.`n`nANNULER`nDouble touche sans maintenir, ou Échap pendant l'enregistrement, annule.",
+  "msg.bigmodel", "Ce modèle dépasse 3 Go et peut saturer les 8 Go de VRAM. L'utiliser quand même ?",
+  "msg.fail", "Dictée échouée - réessayez",
+  "msg.nolast", "Pas encore de transcription",
+  "msg.copied", "Dernière transcription copiée"
 ),
 "es", Map(
   "lang.name", "Español",
@@ -94,6 +109,8 @@ global LANG := Map(
   "menu.exit", "Salir",
   "menu.lang", "Idioma",
   "menu.chunk", "Dividir textos largos",
+  "menu.temp", "Abrir carpeta temporal",
+  "menu.copylast", "Copiar última transcripción",
   "ov.rec", "Grabando",
   "ov.tra", "Transcribiendo...",
   "ov.nor", "Normalizando...",
@@ -101,7 +118,10 @@ global LANG := Map(
   "tip.rec", "SOBER-STT - grabando (suelte para procesar)",
   "tip.proc", "SOBER-STT - procesando...",
   "help.title", "SOBER-STT - Ayuda",
-  "help.body", "SOBER-STT - dictado por voz local (sin nube).`n`nUSO`nToque 2 veces BloqMay y mantenga la 2.a pulsación, hable, suelte.`nEl texto limpio se pega donde está el cursor.`nColores: verde grabando, naranja transcribiendo, azul normalizando.`n`nMENÚ`n- Mantener modelos cargados: nunca descarga la IA tras 1 min.`n- Iniciar con Windows: abre con el sistema.`n- Dividir textos largos: normaliza por bloques.`n- Cambiar modelo: usa un .gguf/.bin en models/.`n`nCOMPROBAR LA NORMALIZACIÓN`nTras dictar, abra %TEMP%\sober-stt.last.json:`nraw = oído, text = pegado,`nprompt = .md en uso (ver promptFile); `"lib`" = interno.",
-  "msg.bigmodel", "Este modelo supera 3 GB y puede agotar los 8 GB de VRAM. ¿Usarlo igualmente?"
+  "help.body", "SOBER-STT - dictado por voz local (sin nube).`n`nUSO`nToque 2 veces BloqMay y mantenga la 2.a pulsación, hable, suelte.`nEl texto limpio se pega donde está el cursor.`nColores: verde grabando, naranja transcribiendo, azul normalizando.`n`nMENÚ`n- Mantener modelos cargados: nunca descarga la IA tras 1 min.`n- Iniciar con Windows: abre con el sistema.`n- Dividir textos largos: normaliza por bloques.`n- Cambiar modelo: usa un .gguf/.bin en models/.`n`nCOMPROBAR LA NORMALIZACIÓN`nTras dictar, abra %TEMP%\sober-stt.last.json:`nraw = oído, text = pegado,`nprompt = .md en uso (ver promptFile); `"lib`" = interno.`n`nCANCELAR`nDoble toque sin mantener, o Esc grabando, cancela.",
+  "msg.bigmodel", "Este modelo supera 3 GB y puede agotar los 8 GB de VRAM. ¿Usarlo igualmente?",
+  "msg.fail", "Dictado fallido - intente de nuevo",
+  "msg.nolast", "Aún no hay transcripción",
+  "msg.copied", "Última transcripción copiada"
 )
 )

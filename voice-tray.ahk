@@ -2,6 +2,8 @@
 #SingleInstance Force
 Persistent
 
+APPVER := "1.0.2"
+
 ; ============================================================================
 ; SOBER-STT - tray app
 ;
@@ -17,10 +19,26 @@ Persistent
 
 PORT := 8791
 ; Honor config.json so installs can move off the default port on conflict.
+; config.local.json (dev override, gitignored) wins when present.
+GetCfgVal(text, key) {
+    if (RegExMatch(text, '"' . key . '"\s*:\s*(-?\d+)', &m))
+        return Integer(m[1])
+    if (RegExMatch(text, '"' . key . '"\s*:\s*"([^"]*)"', &m))
+        return m[1]
+    return ""
+}
 try {
     cfgText := FileRead(A_ScriptDir "\config.json")
-    if (RegExMatch(cfgText, '"runnerPort"\s*:\s*(\d+)', &m))
-        PORT := Integer(m[1])
+    v := GetCfgVal(cfgText, "runnerPort")
+    if (v != "")
+        PORT := v
+} catch {
+}
+try {
+    localText := FileRead(A_ScriptDir "\config.local.json")
+    v := GetCfgVal(localText, "runnerPort")
+    if (v != "")
+        PORT := v
 } catch {
 }
 ; Prefer the bundled portable Node (installer layout); fall back to PATH.
@@ -58,6 +76,17 @@ REG_NAME := "SOBER-STT"
 #Include locale.ahk
 LOCALEF := STATE_DIR "\locale"
 CHUNKF := STATE_DIR "\chunk.state"   ; "0" = single-call mode (default: chunks on)
+global SOBER_TOKEN := ""
+TOKENF := STATE_DIR "\sober-stt.token" ; per-boot API token written by runner.mjs
+LoadToken() {
+    global SOBER_TOKEN, TOKENF
+    try {
+        t := Trim(FileRead(TOKENF))
+        if (t != "")
+            SOBER_TOKEN := t
+    } catch {
+    }
+}
 global ActiveLang := "en"
 
 ; UI language lookup with English fallback.
@@ -124,7 +153,7 @@ SetState(state) {
             ShowOverlay()
         default:
             TraySetIcon(ICON_IDLE)
-            A_IconTip := T("tip.ready")
+            A_IconTip := T("tip.ready") . " v" . APPVER
             HideOverlay()
     }
 }
@@ -164,8 +193,20 @@ ShowOverlay() {
     global OVL, OVL_BARSS, OVL_COLOR
     if (!OVL)
         BuildOverlay()
-    x := (A_ScreenWidth - 172) // 2
-    y := A_ScreenHeight - 150
+    ; U1: center on the monitor with the mouse, not the primary one.
+    CoordMode "Mouse", "Screen"
+    MouseGetPos &mx, &my
+    mon := 1
+    Loop MonitorGetCount() {
+        MonitorGet(A_Index, &ml, &mt, &mr, &mb)
+        if (mx >= ml && mx < mr && my >= mt && my < mb) {
+            mon := A_Index
+            break
+        }
+    }
+    MonitorGet(mon, &ml, &mt, &mr, &mb)
+    x := ml + ((mr - ml) - 172) // 2
+    y := mb - 150
     OVL.Show("x" x " y" y " w172 h68 NoActivate")
     ApplyRound(OVL, 172, 68, 20)
     for b in OVL_BARSS
@@ -239,10 +280,13 @@ UpdateOverlay(*) {
 
 ; ---- HTTP ------------------------------------------------------------------
 HttpPost(path, timeoutMs := 5000, body := "") {
+    global SOBER_TOKEN
     try {
         req := ComObject("WinHttp.WinHttpRequest.5.1")
         req.SetTimeouts(2000, 2000, 60000, timeoutMs)
         req.Open("POST", "http://127.0.0.1:" . PORT . path, false)
+        if (SOBER_TOKEN != "")
+            req.SetRequestHeader("X-SOBER-Token", SOBER_TOKEN)
         if (body != "")
             req.SetRequestHeader("Content-Type", "application/json")
         req.Send(body)
@@ -253,10 +297,13 @@ HttpPost(path, timeoutMs := 5000, body := "") {
 }
 
 HttpGet(path, timeoutMs := 1500) {
+    global SOBER_TOKEN
     try {
         req := ComObject("WinHttp.WinHttpRequest.5.1")
         req.SetTimeouts(1000, 1000, 3000, timeoutMs)
         req.Open("GET", "http://127.0.0.1:" . PORT . path, false)
+        if (SOBER_TOKEN != "")
+            req.SetRequestHeader("X-SOBER-Token", SOBER_TOKEN)
         req.Send()
         return req.ResponseText
     } catch {
@@ -280,9 +327,16 @@ DoCancel() {
 DoPipeline() {
     ; /stop returns at once ({started, seq}); the overlay keeps
     ; repainting while phases change, and PollResult closes at the end.
-    global POLL_SEQ, POLL_N
+    ; The focused window's PID goes along so the runner can put it back
+    ; on top before pasting (U2).
+    global POLL_SEQ, POLL_N, POLL_PID
     Dbg("DoPipeline")
-    resp := HttpPost("/stop", 10000)
+    try {
+        POLL_PID := WinGetPID("A")
+    } catch {
+        POLL_PID := 0
+    }
+    resp := HttpPost("/stop", 10000, '{"pid":' . POLL_PID . '}')
     m := ""
     if (RegExMatch(resp, '"seq"\s*:\s*(\d+)', &m)) {
         POLL_SEQ := Integer(m[1])
@@ -301,10 +355,20 @@ PollResult(*) {
         SetTimer(PollResult, 0)
         SetState("idle")
         if (InStr(r, '"ok":false')) {
+            ; U4: failures were silent since toasts were removed. One
+            ; balloon on error only; success stays quiet.
+            try TrayTip(T("msg.fail"), "SOBER-STT", "Icon!")
         }
         return
     }
     if (POLL_N > 1200) {
+        ; B10: a long chunked dictation can outlast 3 min of polling. Don't
+        ; go idle while the runner is still processing; extend the wait.
+        h := HttpGet("/health", 3000)
+        if (InStr(h, '"processing":true')) {
+            POLL_N := 1000
+            return
+        }
         SetTimer(PollResult, 0)
         SetState("idle")
     }
@@ -313,6 +377,7 @@ PollResult(*) {
 ; ---- Lifecycle -------------------------------------------------------------
 StartRunner() {
     global runnerPID
+    LoadToken()
     if (HttpGet("/health") != "") {
         runnerPID := 0
         return
@@ -320,6 +385,7 @@ StartRunner() {
     Run('"' . NODE . '" "' . RUNNER . '"', A_ScriptDir, "Hide", &runnerPID)
     Loop 40 {
         Sleep 200
+        LoadToken()
         if (HttpGet("/health") != "")
             return
     }
@@ -417,7 +483,7 @@ ShowHelp(*) {
     try HelpGui.Destroy()
     catch {
     }
-    HelpGui := Gui("+AlwaysOnTop +ToolWindow", T("help.title"))
+    HelpGui := Gui("+AlwaysOnTop +ToolWindow", T("help.title") . " v" . APPVER)
     HelpGui.SetFont("s9", "Segoe UI")
     HelpGui.Add("Text", "w420", T("help.body"))
     HelpGui.Add("Link", "w420", '<a href="https://github.com/gabriel-macherini/SOBER-STT-8GB">GitHub: gabriel-macherini/SOBER-STT-8GB</a>')
@@ -438,6 +504,8 @@ RefreshModelsMenu() {
     global SubParakeet, SubS1, SubQwen, ActiveModels, MODELS_DIR
     try {
         h := HttpGet("/health")
+        if (RegExMatch(h, '"modelsDir"\s*:\s*"((?:[^"\\]|\\.)*)"', &md))
+            MODELS_DIR := StrReplace(md[1], "\\", "\")
         if (RegExMatch(h, '"parakeet"\s*:\s*"([^"]*)"', &m))
             ActiveModels["parakeet"] := m[1]
         if (RegExMatch(h, '"s1"\s*:\s*"([^"]*)"', &m))
@@ -483,6 +551,42 @@ SwitchModel(slot, file, *) {
     }
 }
 
+; ---- Support -------------------------------------------------------------
+; U5: no more treasure hunt in %TEMP%. Temp folder + last transcript live
+; in the tray menu; the runner log goes to <tmpDir>\sober-stt.log.
+OpenTempDir(*) {
+    dir := ""
+    try {
+        h := HttpGet("/health")
+        if (RegExMatch(h, '"tmpDir"\s*:\s*"((?:[^"\\]|\\.)*)"', &m))
+            dir := StrReplace(m[1], "\\", "\")
+    } catch {
+    }
+    if (dir = "")
+        dir := A_Temp
+    try Run(dir)
+}
+
+CopyLastTranscript(*) {
+    r := HttpGet("/last")
+    if (r = "" || InStr(r, '"ok":false')) {
+        try TrayTip(T("msg.nolast"), "SOBER-STT", "Icon!")
+        return
+    }
+    if (RegExMatch(r, '"text"\s*:\s*"((?:[^"\\]|\\.)*)"', &m)) {
+        t := m[1]
+        t := StrReplace(t, "\\", "\x00")
+        t := StrReplace(t, '\"', '"')
+        t := StrReplace(t, "\n", "`n")
+        t := StrReplace(t, "\r", "`r")
+        t := StrReplace(t, "\t", "`t")
+        t := StrReplace(t, "\x00", "\")
+        try {
+            A_Clipboard := t
+            TrayTip(T("msg.copied"), "SOBER-STT")
+        }
+    }
+}
 ; ---- Tray menu -------------------------------------------------------------
 ; Rebuilt on boot and on every language switch, so all labels follow T().
 ; The warm/autostart checks are reapplied here too (persisted elsewhere).
@@ -511,6 +615,8 @@ BuildTrayMenu() {
     A_TrayMenu.Add(T("menu.lang"), LangMenu)
     A_TrayMenu.Add()
     A_TrayMenu.Add(T("menu.folder"), (*) => Run(A_ScriptDir))
+    A_TrayMenu.Add(T("menu.temp"), OpenTempDir)
+    A_TrayMenu.Add(T("menu.copylast"), CopyLastTranscript)
     A_TrayMenu.Add(T("menu.help"), ShowHelp)
     A_TrayMenu.Add(T("menu.exit"), ExitVoice)
     if (warm)
@@ -554,6 +660,30 @@ BuildTrayMenu() {
         lastTapUp := (held <= TAP_MAX) ? A_TickCount : 0
     }
 }
+
+; ---- Emergency cancel ------------------------------------------------------
+; U6: Esc aborts a recording while the overlay shows it (same as a short
+; double-tap). Guarded to the recording phase so Esc keeps working in the
+; focused app at any other time.
+EscCancels() {
+    global OVL, PHASEF
+    try {
+        if (!IsObject(OVL) || !OVL.Visible)
+            return false
+        if (!FileExist(PHASEF))
+            return false
+        return Trim(FileRead(PHASEF)) = "recording"
+    } catch {
+        return false
+    }
+}
+#HotIf EscCancels()
+Esc:: {
+    Dbg("esc-cancel")
+    SetTimer(DoCancel, -10)
+    SetState("idle")
+}
+#HotIf
 
 ; ---- Boot ------------------------------------------------------------------
 OnExit((*) => (StopRunner(), 0))

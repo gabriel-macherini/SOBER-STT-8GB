@@ -4,10 +4,11 @@
 # recording: ~1.2s until the mic is live, clipping the start of speech.
 # This host compiles the type ONCE, then just toggles recording via stdin.
 #
-# Commands (one line each, replies "ok"):
-#   start <wavPath> <levelPath>   start recording to file and publish level
-#   stop                          finalize and close the file
-#   quit                          exit
+# Commands: one JSON object per line (paths may contain spaces).
+#   {"cmd":"start","wav":"C:\\...\\sober-stt.wav","level":"C:\\...\\sober-stt.level"}
+#   {"cmd":"stop"} | {"cmd":"quit"}
+# Legacy plain lines ("start <wav> <level>", "stop", "quit") are still
+# accepted so an older runner keeps working. Replies "ok" or "err".
 #
 # levelPath receives an integer 0..100 (last buffer peak) for the overlay.
 #
@@ -159,12 +160,24 @@ while ($true) {
     if ($null -eq $line) { break }
     $line = $line.Trim()
     if ($line -eq "") { continue }
-    $parts = $line -split '\s+'
-    switch ($parts[0]) {
+    $cmd = $null; $wav = $null; $level = $null
+    if ($line.StartsWith("{")) {
+        try { $obj = $line | ConvertFrom-Json; $cmd = $obj.cmd; $wav = $obj.wav; $level = $obj.level }
+        catch { [Console]::Out.WriteLine("err"); [Console]::Out.Flush(); continue }
+    } else {
+        $parts = $line -split '\s+'
+        $cmd = $parts[0]
+        if ($parts.Count -gt 1) { $wav = $parts[1] }
+        if ($parts.Count -gt 2) { $level = $parts[2] }
+    }
+    switch ($cmd) {
         "start" {
+            if ([string]::IsNullOrEmpty($wav) -or [string]::IsNullOrEmpty($level)) {
+                [Console]::Out.WriteLine("err"); [Console]::Out.Flush(); continue
+            }
             if ($rec) { $rec.StopAndWait(1000); $rec = $null }
             $rec = [WaveRecHost]::new()
-            $rec.Start($parts[1], [uint32]4294967295, $parts[2])
+            $rec.Start($wav, [uint32]4294967295, $level)
             [Console]::Out.WriteLine("ok"); [Console]::Out.Flush()
         }
         "stop" {

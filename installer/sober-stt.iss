@@ -8,7 +8,7 @@
 ; Build with:  pwsh tools/build-installer.ps1
 ; (regenerates generated-downloads.iss, then runs ISCC on this file)
 
-#define AppVersion "1.0.1"
+#define AppVersion "1.0.2"
 #define DistDir "..\dist\SOBER-STT"
 
 #include "generated-downloads-defs.iss"
@@ -36,7 +36,9 @@ AllowCancelDuringInstall=yes
 
 [Languages]
 Name: "en"; MessagesFile: "compiler:Default.isl"
-Name: "pt"; MessagesFile: "compiler:Languages\Portuguese.isl"
+; pt-BR vendored (official Inno pt is pt-PT): upstream at
+; https://github.com/jrsoftware/issrc/blob/main/Files/Languages/BrazilianPortuguese.isl
+Name: "pt"; MessagesFile: "Languages\BrazilianPortuguese.isl"
 Name: "fr"; MessagesFile: "compiler:Languages\French.isl"
 Name: "es"; MessagesFile: "compiler:Languages\Spanish.isl"
 
@@ -109,6 +111,10 @@ en.UninstQ2=Say No to keep them and speed up a future reinstall.
 pt.UninstQ2=Diga Não para manter e acelerar uma futura reinstalação.
 fr.UninstQ2=Répondez Non pour les garder et accélérer une réinstallation.
 es.UninstQ2=Diga No para conservarlos y acelerar una reinstalación.
+en.UninstState=Also remove settings (language, toggles, model choices)?
+pt.UninstState=Remover também as preferências (idioma, toggles, modelos)?
+fr.UninstState=Supprimer aussi les préférences (langue, options, modèles) ?
+es.UninstState=¿Eliminar también las preferencias (idioma, opciones, modelos)?
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:TDesktop}"; GroupDescription: "{cm:GroupIcons}"; Flags: checkedonce
@@ -287,7 +293,7 @@ begin
         if FileExists(ExpandConstant('{app}\') + DownloadCheckFile(I)) then
           Continue;
         DownloadPage.Clear;
-        DownloadPage.Add(DownloadUrl(I), DownloadFile(I), '');
+        DownloadPage.Add(DownloadUrl(I), DownloadFile(I), DownloadSha256(I));
         try
           DownloadPage.Download;
         except
@@ -362,8 +368,21 @@ end;
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 begin
   if CurUninstallStep = usUninstall then
+  begin
     if MsgBox(CustomMessage('UninstQ') + #13#10 +
       CustomMessage('UninstQ2'),
       mbConfirmation, MB_YESNO) = IDYES then
       DelTree(ExpandConstant('{app}\models'), True, True, True);
+    if MsgBox(CustomMessage('UninstState'), mbConfirmation, MB_YESNO) = IDYES then
+    begin
+      DelTree(ExpandConstant('{userappdata}\SOBER-STT-8GB'), True, True, True);
+      { NOTE: Use GetEnv, not the tmp constant (that one is the setup temp dir). }
+      DeleteFile(GetEnv('TEMP') + '\sober-stt.token');
+      DeleteFile(GetEnv('TEMP') + '\sober-stt.last.json');
+      DeleteFile(GetEnv('TEMP') + '\sober-stt.log');
+      DeleteFile(GetEnv('TEMP') + '\sober-stt.wav');
+      DeleteFile(GetEnv('TEMP') + '\sober-stt.level');
+      DeleteFile(GetEnv('TEMP') + '\sober-stt.phase');
+    end;
+  end;
 end;

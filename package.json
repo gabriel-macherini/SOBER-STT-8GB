@@ -1,0 +1,10 @@
+{
+  "private": true,
+  "description": "SOBER-STT-8GB: push-to-talk voice dictation for Windows, 100% local. Zero runtime dependencies.",
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/units.test.mjs",
+    "check": "node --check runner.mjs && node tools/check-version.mjs",
+    "prompt:check": "node -e \"Promise.all([import('fs').then(m=>m.default),import('./lib/stt.js')]).then(([fs,stt])=>{const md=fs.readFileSync('prompts/stt-system-prompt.md','utf8').replace(/^<!--[\\s\\S]*?-->\\s*/,'').replace(/\\s+$/,'');if(md!==stt.STT_SYSTEM_PROMPT){console.error('prompt drift');process.exit(1)}console.log('prompt in sync')})\""
+  }
+}

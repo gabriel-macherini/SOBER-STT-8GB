@@ -51,7 +51,7 @@ This repo's policy on top: pre-warm **qwen only** at record start
 ## Fresh-machine checklist
 
 1. Windows 10/11, NVIDIA CUDA-capable GPU.
-2. Run the installer (models + CUDA binaries come from `installer/downloads.json`).
+2. Run the installer (`dist/SOBER-STT-Setup-<version>.exe`, built by `pwsh tools/build-installer.ps1`; latest under [Releases](https://github.com/gabriel-macherini/SOBER-STT-8GB/releases/latest)) — models + CUDA binaries come from `installer/downloads.json`).
 3. Only for source runs: Node 22+, AutoHotkey v2, and a `config.local.json`
    with your paths (see `config.json`); never commit it.
 4. Match `parakeetThreads` to your core count; re-measure with the

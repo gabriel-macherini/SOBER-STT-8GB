@@ -1,6 +1,25 @@
 # Changelog — SOBER-STT
 
-## [1.0.1]
+## [1.0.2] - 2026-10-16
+
+([compare with 1.0.1](https://github.com/gabriel-macherini/SOBER-STT-8GB/compare/v1.0.1...v1.0.2))
+
+### Added
+- Loopback API auth: per-boot token (`X-SOBER-Token`) + Host/Origin checks (web pages can no longer drive the mic).
+- Tray: temp-folder / copy-last-transcript menu, error balloon, Esc cancels recording, overlay on the mouse monitor, app version in Help/tooltip.
+- `GET /last` endpoint; runner log to `sober-stt.log`; 20 unit tests + CI.
+- Installer: SHA-256 verification of downloads, settings cleanup on uninstall.
+- Docs: requirements/privacy/troubleshooting/API tables, SECURITY.md, vendoring note.
+
+### Fixed
+- PT download list empty, spaces in paths, crash without PowerShell 7, `config.local.json` ignored by tray, model-dir mismatch, recorder queue desync, silent failures.
+
+### Changed
+- Last WAV deleted after every dictation (`"keepLastJson": false` disables the transcript file); clipboard restored after paste; focused window restored before pasting.
+
+## [1.0.1] - 2026-10-15
+
+([compare with 1.0.0](https://github.com/gabriel-macherini/SOBER-STT-8GB/compare/v1.0.0...v1.0.1))
 
 ### Added
 - Trilingual list triggers (`lista`/`dois pontos`, `list`/`colon`, `liste`/`deux-points`, literal `:`) with same-language few-shot bias in PT/EN/FR.
@@ -28,7 +47,7 @@
 - All toast notifications (state stays on the tray icon + overlay; failures land in `sober-stt.last.json`).
 - The experimental cross-chunk list renumbering toggle.
 
-## [1.0.0]
+## [1.0.0] - 2026-10-14
 
 - First one-click installer: folder choice, Desktop/Start icons, Start-with-Windows task, model + CUDA binary downloads, uninstaller with keep-models option.
 - Portable zero-dependency build (compiled tray `.exe`, portable Node, no AutoHotkey needed on target).

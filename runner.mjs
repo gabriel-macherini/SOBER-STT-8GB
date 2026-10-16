@@ -7,6 +7,7 @@
 //   POST /stop             stop + transcribe + normalize + paste (async: returns
 //                          {started, seq} immediately; poll /result?seq=N)
 //   GET  /result?seq=N     pipeline result for a /stop ({done, ok, error, pasted})
+//   GET  /last             last pipeline I/O ({raw, text, error, prompt})
 //   POST /cancel           cancel the current recording
 //   POST /kill             kill local LLM servers (free VRAM/RAM)
 //   POST /warm {enabled}   keep s1/qwen loaded, or restore the 1-min idle kill
@@ -28,6 +29,7 @@ import http from "node:http";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { execFileSync, spawn } from "node:child_process";
 
@@ -59,7 +61,7 @@ const llmServers = await import("./lib/local-llm-manager.js");
 const PORT = CONFIG.runnerPort || 8791;
 const IDLE_KILL_MS = 60_000;
 const WARM_TOUCH_MS = 45_000;
-const REC_HOST = new URL("./rec-host.ps1", import.meta.url).pathname.replace(/^\//, "");
+const REC_HOST = fileURLToPath(new URL("./rec-host.ps1", import.meta.url));
 // Mirrors the plugin options currently in cli.json.
 const OPTIONS = {
   endpoint: CONFIG.endpoint || "http://127.0.0.1:8081/v1",
@@ -98,6 +100,18 @@ function loadModelOverrides() {
   }
 }
 const MODEL_OVERRIDES = loadModelOverrides();
+
+// Loopback API auth: per-boot token so a web page can't drive the mic.
+// Written where the tray app can read it (state dir + tmpDir); the AHK
+// sends it as X-SOBER-Token on every request (a custom header forces a
+// CORS preflight, which a simple <form>/fetch from a page can't pass).
+const TOKEN = crypto.randomBytes(24).toString("hex");
+for (const dir of new Set([OPTIONS.tmpDir, stateDir()])) {
+  try {
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, "sober-stt.token"), TOKEN);
+  } catch {}
+}
 
 function activeModels() {
   return {
@@ -138,10 +152,20 @@ const PHASE_PATH = OPTIONS.tmpDir + "/sober-stt.phase";
 const RESULTS = new Map();
 let pipelineSeq = 0;
 // Last pipeline I/O, for debugging what was heard vs produced.
+// Disabled with "keepLastJson": false in config (privacy).
 const LAST_PATH = OPTIONS.tmpDir + "/sober-stt.last.json";
 function writeLast(payload) {
+  if (CONFIG.keepLastJson === false) return;
   try {
     fs.writeFileSync(LAST_PATH, JSON.stringify(payload));
+  } catch {}
+}
+
+// The last dictation WAV is useless once transcribed: delete it so the
+// microphone's latest audio never sits in %TEMP% (S3).
+function dropWav() {
+  try {
+    fs.unlinkSync(stt.getSttWavPath());
   } catch {}
 }
 
@@ -160,6 +184,22 @@ const logger = {
     console.log(`[${level}] ${scope}: ${message}`);
   },
 };
+
+// The packaged tray starts the runner hidden, so stdout is lost. Mirror it
+// to %TEMP%/sober-stt.log for bug reports (fresh file past 512 KB).
+const LOG_PATH = OPTIONS.tmpDir + "/sober-stt.log";
+try {
+  if (fs.existsSync(LOG_PATH) && fs.statSync(LOG_PATH).size > 512 * 1024) fs.unlinkSync(LOG_PATH);
+} catch {}
+for (const m of ["log", "warn", "error"]) {
+  const orig = console[m].bind(console);
+  console[m] = (...a) => {
+    orig(...a);
+    try {
+      fs.appendFileSync(LOG_PATH, a.map((x) => String(x)).join(" ") + "\n");
+    } catch {}
+  };
+}
 
 // STT system prompt: canonical copy lives in prompts/ (configurable via
 // promptFile, so prompt variants can be A/B tested). Falls back to the lib
@@ -213,9 +253,43 @@ let hostReady = null;
 let hostBuffer = "";
 const hostPending = [];
 
+// PowerShell 7 (pwsh) is not inbox on Win10/11; fall back to Windows
+// PowerShell 5.1 (powershell.exe), which covers both uses (host + SendKeys).
+let _psBin = null;
+function psBin() {
+  if (_psBin) return _psBin;
+  if (process.platform !== "win32") {
+    _psBin = "pwsh";
+    return _psBin;
+  }
+  try {
+    execFileSync("where", ["pwsh"], { stdio: "ignore" });
+    _psBin = "pwsh";
+  } catch {
+    _psBin = "powershell.exe";
+  }
+  return _psBin;
+}
+
+function dropHost(e) {
+  if (e) logger.log("VOICE", `recorder host error: ${e.message}`, "warn");
+  try {
+    hostProc?.kill();
+  } catch {}
+  hostProc = null;
+  hostReady = null;
+  recording = false;
+  while (hostPending.length) {
+    const resolve = hostPending.shift();
+    try {
+      resolve("err host-error");
+    } catch {}
+  }
+}
+
 function ensureHost() {
   if (hostProc) return hostReady;
-  hostProc = spawn("pwsh", ["-NoProfile", "-NonInteractive", "-File", REC_HOST], {
+  hostProc = spawn(psBin(), ["-NoProfile", "-NonInteractive", "-File", REC_HOST], {
     stdio: ["pipe", "pipe", "pipe"],
     windowsHide: true,
   });
@@ -233,6 +307,7 @@ function ensureHost() {
     }
   });
   hostProc.stderr.on("data", (data) => logger.log("REC", String(data).trim(), "warn"));
+  hostProc.on("error", dropHost);
   hostProc.on("exit", () => {
     hostProc = null;
     hostReady = null;
@@ -245,11 +320,16 @@ function ensureHost() {
 function hostCmd(line) {
   return new Promise((resolve, reject) => {
     if (!hostProc) return reject(new Error("recorder host not running"));
-    const timer = setTimeout(() => reject(new Error("recorder host timeout")), 15000);
-    hostPending.push((response) => {
+    const entry = (response) => {
       clearTimeout(timer);
       resolve(response);
-    });
+    };
+    const timer = setTimeout(() => {
+      const i = hostPending.indexOf(entry);
+      if (i >= 0) hostPending.splice(i, 1);
+      reject(new Error("recorder host timeout"));
+    }, 15000);
+    hostPending.push(entry);
     hostProc.stdin.write(line + "\n");
   });
 }
@@ -303,21 +383,48 @@ function startWarmLoop() {
   }
 }
 
-function pasteText(text) {
+function pasteText(text, pid) {
   if (process.platform !== "win32") return false;
+  // U3: don't eat the user's clipboard. Save text content, restore ~400 ms
+  // after pasting (best effort; non-text clipboard content can't be saved
+  // via clip). Disable with "preserveClipboard": false.
+  let prev = null;
+  if (CONFIG.preserveClipboard !== false) {
+    try {
+      prev = execFileSync(psBin(), ["-NoProfile", "-NonInteractive", "-Command", "Get-Clipboard -Raw"], {
+        timeout: 5000,
+      }).toString();
+    } catch {
+      prev = null;
+    }
+  }
   try {
     execFileSync("clip", { input: text });
   } catch {
     return false;
   }
   try {
+    // U2: the user may have switched windows mid-pipeline; put the window
+    // that was focused at /stop back on top before Ctrl+V (best effort).
+    const focus = Number(pid) > 0 ? `$w.AppActivate(${Number(pid)}); Start-Sleep -Milliseconds 150; ` : "";
     execFileSync(
-      "pwsh",
-      ["-NoProfile", "-NonInteractive", "-Command", "(New-Object -ComObject WScript.Shell).SendKeys('^v')"],
+      psBin(),
+      ["-NoProfile", "-NonInteractive", "-Command", `$w=New-Object -ComObject WScript.Shell; ${focus}$w.SendKeys('^v')`],
       { timeout: 8000 },
     );
   } catch {
     return false;
+  }
+  if (prev !== null) {
+    const t = setTimeout(() => {
+      try {
+        execFileSync(psBin(), ["-NoProfile", "-NonInteractive", "-Command", "Set-Clipboard -Value $input"], {
+          input: prev,
+          timeout: 5000,
+        });
+      } catch {}
+    }, 400);
+    t.unref?.();
   }
   return true;
 }
@@ -326,7 +433,7 @@ function pasteText(text) {
 // Runs in the background: /stop returns {started, seq} immediately so the AHK
 // overlay keeps repainting while the phases change. (A blocking /stop froze the
 // AHK thread inside the HTTP call, so transcribing/normalizing never painted.)
-async function runPipeline(seq) {
+async function runPipeline(seq, pid) {
   processing = true;
   const done = (payload) => {
     RESULTS.set(seq, { seq, done: true, ...payload });
@@ -334,10 +441,11 @@ async function runPipeline(seq) {
     processing = false;
     writePhase("idle");
     stt.markSttIdle();
+    dropWav();
     scheduleIdleKill();
   };
   try {
-    await hostCmd("stop"); // finalizes the WAV before we transcribe
+    await hostCmd(JSON.stringify({ cmd: "stop" })); // finalizes the WAV before we transcribe
     recording = false;
 
     writePhase("transcribing");
@@ -358,23 +466,37 @@ async function runPipeline(seq) {
     const normalized = await stt.normalizeHybrid(complete, result.text, "", STT_TEXT, logger);
     const text = normalized?.text || result.text;
     writeLast({ raw: result.text, text, error: normalized?.error || null, prompt: PROMPT_SOURCE });
-    done({ ok: true, text, pasted: pasteText(text) });
+    done({ ok: true, text, pasted: pasteText(text, pid) });
   } catch (e) {
     done({ ok: false, error: e.message });
   }
 }
 
-function readBody(req) {
+function readBody(req, limit = 100 * 1024) {
   return new Promise((resolve) => {
     let data = "";
-    req.on("data", (chunk) => (data += chunk));
+    let size = 0;
+    let tooBig = false;
+    req.on("data", (chunk) => {
+      size += chunk.length;
+      // Over the cap: drain without accumulating (bounded memory) and
+      // answer 413 on end. No destroy(): the socket must stay open to
+      // deliver the response.
+      if (size > limit) {
+        tooBig = true;
+        return;
+      }
+      if (!tooBig) data += chunk;
+    });
     req.on("end", () => {
+      if (tooBig) return resolve({ __tooBig: true });
       try {
         resolve(data ? JSON.parse(data) : {});
       } catch {
         resolve({});
       }
     });
+    req.on("error", () => resolve({}));
   });
 }
 
@@ -405,13 +527,29 @@ const server = http.createServer(async (req, res) => {
   const method = req.method;
 
   try {
+    // S1: loopback alone doesn't stop a web page (CORS blocks reading, not
+    // sending). Require the loopback host, no Origin, and the per-boot token.
+    const host = String(req.headers.host || "").split(":")[0].toLowerCase().replace(/^\[|\]$/g, "");
+    if (!["127.0.0.1", "localhost", "::1"].includes(host))
+      return send(res, 403, { ok: false, error: "bad-host" });
+    if (req.headers.origin) return send(res, 403, { ok: false, error: "origin-denied" });
+    if (req.headers["x-sober-token"] !== TOKEN)
+      return send(res, 403, { ok: false, error: "bad-token" });
+
     if (method === "GET" && reqPath === "/health") {
-      return send(res, 200, { ok: true, recording, processing, warm, phase, deps: checkDeps() });
+      return send(res, 200, { ok: true, recording, processing, warm, phase, modelsDir: MODELS_DIR, tmpDir: OPTIONS.tmpDir, deps: checkDeps() });
+    }
+    if (method === "GET" && reqPath === "/last") {
+      try {
+        return send(res, 200, { ok: true, ...JSON.parse(fs.readFileSync(LAST_PATH, "utf8")) });
+      } catch {
+        return send(res, 404, { ok: false, error: "no-last" });
+      }
     }
     if (method === "POST" && reqPath === "/start") {
       if (recording || processing) return send(res, 200, { ok: true, recording });
       await ensureHost();
-      await hostCmd(`start ${stt.getSttWavPath()} ${LEVEL_PATH}`);
+      await hostCmd(JSON.stringify({ cmd: "start", wav: stt.getSttWavPath(), level: LEVEL_PATH }));
       recording = true;
       writePhase("recording");
       // Pre-warm qwen while parakeet transcribes (~1s): hides the ~1.5s cold
@@ -425,10 +563,12 @@ const server = http.createServer(async (req, res) => {
     if (method === "POST" && reqPath === "/stop") {
       if (processing) return send(res, 200, { ok: false, error: "busy" });
       if (!recording) return send(res, 200, { ok: false, error: "not-recording" });
+      const stopBody = await readBody(req);
+      if (stopBody.__tooBig) return send(res, 413, { ok: false, error: "body-too-big" });
       pipelineSeq += 1;
       const seq = pipelineSeq;
       RESULTS.set(seq, { seq, done: false });
-      void runPipeline(seq);
+      void runPipeline(seq, Number(stopBody.pid) || 0);
       return send(res, 200, { ok: true, started: true, seq });
     }
     if (method === "GET" && reqPath === "/result") {
@@ -439,8 +579,9 @@ const server = http.createServer(async (req, res) => {
     }
     if (method === "POST" && reqPath === "/cancel") {
       if (recording) {
-        await hostCmd("stop");
+        await hostCmd(JSON.stringify({ cmd: "stop" }));
         recording = false;
+        dropWav();
       }
       writePhase("idle");
       stt.markSttIdle();
@@ -453,6 +594,7 @@ const server = http.createServer(async (req, res) => {
     }
     if (method === "POST" && reqPath === "/warm") {
       const body = await readBody(req);
+      if (body.__tooBig) return send(res, 413, { ok: false, error: "body-too-big" });
       warm = Boolean(body.enabled);
       if (warm) {
         startWarmLoop();
@@ -464,12 +606,14 @@ const server = http.createServer(async (req, res) => {
     }
     if (method === "POST" && reqPath === "/chunk") {
       const body = await readBody(req);
+      if (body.__tooBig) return send(res, 413, { ok: false, error: "body-too-big" });
       OPTIONS.chunking = body.enabled !== false;
       stt.configureSttRuntime(OPTIONS, logger);
       return send(res, 200, { ok: true, chunking: OPTIONS.chunking });
     }
     if (method === "POST" && reqPath === "/models") {
       const body = await readBody(req);
+      if (body.__tooBig) return send(res, 413, { ok: false, error: "body-too-big" });
       const slot = String(body.slot || "");
       const file = String(body.file || "");
       const known = ["parakeet", "s1", "qwen"];
@@ -534,6 +678,11 @@ function shutdown() {
   clearIdle();
   stopWarmLoop();
   killServers();
+  for (const dir of new Set([OPTIONS.tmpDir, stateDir()])) {
+    try {
+      fs.unlinkSync(path.join(dir, "sober-stt.token"));
+    } catch {}
+  }
   if (hostProc) {
     try {
       hostProc.stdin.write("quit\n");

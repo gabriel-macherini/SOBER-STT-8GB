@@ -10,7 +10,7 @@ Push-to-talk voice dictation for Windows, tuned for an 8 GB VRAM card.
 
 Push-to-talk voice dictation for Windows. Double-tap and hold **CapsLock**, speak, release — your words are transcribed locally, cleaned up by a local LLM, and pasted into whatever window has focus. No cloud, no subscription, no typing.
 
-> 🇧🇷 Versão em português abaixo: [Português](#-opencode-voice-em-português)
+> 🇧🇷 Versão em português abaixo: [Português](#-sober-stt-em-português)
 
 ## ✨ Features
 
@@ -23,15 +23,32 @@ Push-to-talk voice dictation for Windows. Double-tap and hold **CapsLock**, spea
 
 ## 📦 Install (end user)
 
-Download `SOBER-STT-Setup-*.exe` from Releases and run it. One click:
+Download `SOBER-STT-Setup-*.exe` from [Releases](https://github.com/gabriel-macherini/SOBER-STT-8GB/releases/latest) and run it. One click:
 
 1. Pick a folder (default `%LocalAppData%\SOBER-STT-8GB`, no admin needed).
 2. Pick a language (English / Português / Français / Español) — it seeds the app's UI language.
 3. Check Desktop / Start Menu icons and **Start with Windows** if you want them.
-4. The wizard checks your GPU (NVIDIA + 6+ GB VRAM recommended; warns on old/small/absent cards) and shows exactly what it downloads (name + version + size, see `installer/downloads.json`) — ~4.5 GB of models and GPU binaries, skipped if already present — then leaves the app ready to dictate.
+4. The wizard checks your GPU (NVIDIA + 6+ GB VRAM recommended; warns on old/small/absent cards) and shows exactly what it downloads (name + version + size, see `installer/downloads.json`) — ~5 GB to download, ~6 GB on disk, skipped if already present — then leaves the app ready to dictate.
 
 No Node, no AutoHotkey, no repo clone needed on the target machine.
 Requires Windows 10/11 x64 and (for good speed) an NVIDIA GPU with a CUDA driver.
+PowerShell 7 (`pwsh`) is recommended; without it the app falls back to Windows PowerShell 5.1.
+
+### Requirements
+
+| Need | Minimum | Notes |
+|---|---|---|
+| OS | Windows 10/11 x64 | No macOS/Linux (winmm recorder + Ctrl+V paste) |
+| GPU | NVIDIA, 6+ GB VRAM (8 GB comfortable) | Without CUDA, transcription falls back to CPU (much slower) |
+| Disk | ~6 GB free | ~5 GB download, plus staging during install |
+| Mic | Any Windows default input | Check Settings > Privacy when nothing records |
+| Shell | PowerShell 7 recommended | Falls back to `powershell.exe` 5.1 automatically |
+
+From source you also need Node 22+ and AutoHotkey v2 (see below).
+
+### Privacy
+
+Audio, transcription, and normalization run on your machine; nothing leaves it during use. The only network access is the installer downloading models and GPU binaries once (from Hugging Face and GitHub). The last WAV is deleted after each dictation; the last transcript (`%TEMP%\sober-stt.last.json`) is kept for debugging unless `"keepLastJson": false`.
 
 ## 🚀 Quick start (from source)
 
@@ -50,21 +67,32 @@ Right-click the tray icon → **Exit** to quit (frees VRAM immediately).
 
 ## 🖥️ Setup this was developed for
 
-This project was built for and tested on exactly this machine. Porting it elsewhere means adapting these paths (constants at the top of `runner.mjs` / `rec-host.ps1`):
+This project was built for and tested on exactly this machine (portable since 1.0.0: all machine paths live in `config.json`, overridable per dev box in `config.local.json`). See [docs/machine-setup.md](docs/machine-setup.md) for the full bench notes.
 
 | Piece | Path on the dev machine | Notes |
 |---|---|---|
 | OS | Windows 11, RTX 3070 8 GB, Ryzen 5 5600 | VRAM policy tuned for 8 GB |
 | Node | 22 (`node` on `PATH`) | ESM, zero npm dependencies |
 | AutoHotkey | v2 (`AutoHotkey64.exe`) | Runs `voice-tray.ahk` |
-| Mic | Fifine Hub as Windows default input | Native winmm via `rec.ps1` (`sox -d` is broken on Win11) |
-| Transcriber | `bin\whisper\parakeet-cli.exe` (whisper.cpp CUDA build) + `ggml-parakeet-tdt-0.6b-v3-q8_0.bin` (~640 MB) | ~950 ms per dictation |
-| LLM servers | `bin\llama\llama-server.exe` + `s1-mini` (462 MB, EN) + `Qwen3-4B` (2.3 GB, PT/FR) | Spawned on demand, see [opencode-voice](https://github.com/gabriel-macherini/opencode-voice) |
+| Mic | Fifine Hub as Windows default input | Native winmm via `rec-host.ps1` (`sox -d` is broken on Win11) |
+| Transcriber | `bin\whisper\parakeet-cli.exe` (whisper.cpp CUDA build) + `ggml-parakeet-tdt-0.6b-v3-q8_0.bin` (669 MB) | ~950 ms per dictation |
+| LLM servers | `bin\llama\llama-server.exe` + `s1-mini` (484 MB, EN) + `Qwen3-4B` (2.5 GB, PT/FR) | Spawned on demand, see [opencode-voice](https://github.com/gabriel-macherini/opencode-voice) |
 | Pipeline code | `lib/` (vendored from opencode-voice, paths via `config.json`) | STT + normalization logic lives here |
 
 ## 📥 Will a fresh clone work first try?
 
 End users should use the installer above. From source, you need the toolchain first: Windows 10/11 with Node 22+ and AutoHotkey v2, plus binaries + models laid out as in `config.json` (or override paths in `config.local.json`). Then run `voice-tray.ahk`, double-tap-hold CapsLock, speak.
+
+Manual layout (mirrors `installer/downloads.json`: URL → destination under the install folder):
+
+| File | Destination |
+|---|---|
+| `https://huggingface.co/ggml-org/parakeet-GGUF/resolve/main/ggml-parakeet-tdt-0.6b-v3-q8_0.bin` | `models/` |
+| `https://huggingface.co/superwhisper/s1-mini-GGUF/resolve/main/s1-mini-q4_k_m.gguf` | `models/` |
+| `https://huggingface.co/Qwen/Qwen3-4B-GGUF/resolve/main/Qwen3-4B-Q4_K_M.gguf` | `models/` |
+| llama.cpp `b11429` `llama-b11429-bin-win-cuda-12.4-x64.zip` (extract) | `bin/llama/` |
+| llama.cpp `b11429` `cudart-llama-bin-win-cuda-12.4-x64.zip` (extract) | `bin/llama/` |
+| whisper.cpp `b5454` `whisper-bin-win-cuda-12.4.0-x64.zip` (extract) | `bin/whisper/` |
 
 ## ⚙️ Configuration
 
@@ -75,8 +103,10 @@ Machine paths live in `config.json` (relative to the install folder; absolute pa
 | `parakeetBin` / `parakeetModel` | `bin/whisper/...` / `models/ggml-parakeet-...bin` | Transcriber binary + model |
 | `llamaBin` / `s1Model` / `qwenModel` | `bin/llama/...` / `models/...` | LLM server binary + models |
 | `parakeetThreads` | `6` | Match your CPU cores |
-| `runnerPort` / `s1Port` / `qwenPort` | `8791` / `8080` / `8081` | Local ports (tray app reads `runnerPort` too) |
+| `runnerPort` / `s1Port` / `qwenPort` | `8791` / `8080` / `8081` | Local ports (tray app reads `runnerPort` from `config.json` + `config.local.json`) |
 | `promptFile` | `prompts/stt-system-prompt.md` | Normalizer prompt (`prompts/stt-system-prompt-v2.md` available for A/B tests; `last.json` records which one was used) |
+| `keepLastJson` | `true` | Keep `%TEMP%\sober-stt.last.json` (raw + pasted text) for debugging; `false` writes nothing |
+| `preserveClipboard` | `true` | Restore clipboard text ~400 ms after pasting |
 
 Gesture/overlay knobs still live at the top of `voice-tray.ahk`:
 
@@ -87,11 +117,11 @@ Gesture/overlay knobs still live at the top of `voice-tray.ahk`:
 | `COL_REC` / `COL_TRA` / `COL_NOR` | green / orange / blue | Phase colors |
 | `VOICE_DEBUG` | `false` | Gesture log in `%TEMP%\sober-tray.log` |
 
-Tray menu: **Keep models loaded** + **Start with Windows** (persisted in `%APPDATA%\SOBER-STT-8GB\` / `HKCU\...\Run`), **Switch model**, **Open folder**, **Help**, **Exit** — plus a **Language** submenu (English / Português / Français / Español, persisted in `%APPDATA%\SOBER-STT-8GB\locale`). All three choices (warm, autostart, language) survive reboots. Labels shown here are English; the app follows the selected UI language.
+Tray menu: **Keep models loaded** + **Start with Windows** + **Split long texts (chunks)** (on by default, persisted in `%APPDATA%\SOBER-STT-8GB\chunk.state`), **Switch model**, **Open folder**, **Open temp folder**, **Copy last transcript**, **Help** (shows the app version), **Exit** — plus a **Language** submenu (English / Português / Français / Español, persisted in `%APPDATA%\SOBER-STT-8GB\locale`). All choices survive reboots. Labels shown here are English; the app follows the selected UI language.
 
 ### 🔀 Swapping models
 
-Drop a `.gguf` (LLM) or `.bin` (Parakeet) into `models/` and pick it in **Trocar modelo** (per slot: transcription, EN normalization, PT/FR normalization). The runner validates extension + `GGUF` magic, applies immediately (LLM servers reload on next use), and persists in `%APPDATA%\SOBER-STT-8GB\models.override.json` ("Padrão do instalador" resets). Files over 3 GB ask for confirmation (8 GB VRAM risk).
+Drop a `.gguf` (LLM) or `.bin` (Parakeet) into `models/` and pick it in **Switch model** (per slot: transcription, EN normalization, PT/FR normalization). The runner validates extension + `GGUF` magic, applies immediately (LLM servers reload on next use), and persists in `%APPDATA%\SOBER-STT-8GB\models.override.json` ("Installer default" resets). Files over 3 GB ask for confirmation (8 GB VRAM risk).
 
 ## 🏗️ How it works
 
@@ -114,12 +144,41 @@ clipboard + Ctrl+V ──► focused window
 
 ## 📊 Measured latencies (RTX 3070)
 
+Numbers from the author's machine (see [docs/machine-setup.md](docs/machine-setup.md)); yours will differ.
+
 | Step | Cold | Warm |
 |---|---|---|
 | Record start | ~80 ms | ~80 ms |
 | Transcribe | ~950 ms | ~950 ms |
 | Qwen normalize | ~1550 ms | ~95 ms |
 | s1 normalize | ~900 ms | ~65 ms |
+
+## 🔌 Local API
+
+The runner listens on loopback only (`127.0.0.1:8791`, see `runnerPort`) and requires a per-boot token (`X-SOBER-Token`, read by the tray from `sober-stt.token`) — a web page can't drive your mic. Enough to build your own front (Stream Deck, hotkeys):
+
+| Endpoint | What |
+|---|---|
+| `POST /start` | Start recording |
+| `POST /stop {"pid":1234}` | Stop + transcribe + normalize + paste (async `{seq}`; puts the `pid` window back on top first) |
+| `GET /result?seq=N` | Poll the pipeline result |
+| `GET /last` | Last transcript (`raw`, `text`, `error`, `prompt`) |
+| `POST /cancel` | Cancel the recording |
+| `POST /kill` | Kill LLM servers (free VRAM) |
+| `POST /warm {"enabled":bool}` | Keep models loaded |
+| `POST /chunk {"enabled":bool}` | Chunk long dictations |
+| `POST /models {"slot","file"}` | Switch model file per slot |
+| `GET /health` | `{recording, processing, phase, modelsDir, tmpDir, deps}` |
+
+## 🩺 Troubleshooting
+
+| Symptom | Fix |
+|---|---|
+| SmartScreen blocks the installer | Unsigned build: More info → Run anyway |
+| Nothing records | Settings > Privacy > Microphone: allow desktop apps; check the Windows default input |
+| Port conflict | Set `runnerPort` in `config.json` (or `config.local.json`); check with `GET /health` |
+| Text didn't paste | Open `%TEMP%\sober-stt.last.json` (`raw` = heard, `text` = pasted, `error` = why not); tray menu → Copy last transcript |
+| Runner log | `<tmpDir>\sober-stt.log` (or `%TEMP%` by default); gesture log in `%TEMP%\sober-tray.log` with `VOICE_DEBUG` on |
 
 ## 🗺️ Roadmap
 
@@ -133,12 +192,20 @@ Prerequisites: AutoHotkey v2 (for Ahk2Exe) and Inno Setup 6 (`winget install JRS
 
 ```powershell
 pwsh tools/build-portable.ps1   # dist/SOBER-STT: exe + Node portable + app files
-pwsh tools/build-installer.ps1  # dist/SOBER-STT-Setup-1.0.0.exe
+pwsh tools/build-installer.ps1  # dist/SOBER-STT-Setup-1.0.2.exe
 ```
 
-Download versions are pinned in `installer/downloads.json` (single source of truth — the wizard lists them verbatim). Bump a version there and rebuild.
+Download versions are pinned in `installer/downloads.json` (single source of truth — the wizard lists them verbatim). Bump a version there and rebuild. `version.txt` is the version source of truth: `tools/check-version.mjs` (CI) fails if the installer `AppVersion`, CHANGELOG header, README example, or tray `APPVER` drift from it.
 
-Releasing: bump `AppVersion` in `installer/sober-stt.iss`, add a `CHANGELOG.md` section, rebuild, commit, then `git tag -a vX.Y.Z` + `gh release create vX.Y.Z --notes-file - dist/SOBER-STT-Setup-X.Y.Z.exe`.
+Releasing: bump `AppVersion` in `installer/sober-stt.iss`, add a `CHANGELOG.md` section, rebuild, commit, then `git tag -a vX.Y.Z` + `gh release create vX.Y.Z --notes-file - dist/SOBER-STT-Setup-X.Y.Z.exe`. Publish only that version's CHANGELOG section in the release notes, plus the installer SHA-256. Pushing a `v*` tag also triggers the `release` workflow, which runs tests, builds portable + installer, and publishes the release automatically (notes = CHANGELOG section + SHA-256).
+
+## 🗑️ Uninstall
+
+Where things live: install folder (models + binaries), `%APPDATA%\SOBER-STT-8GB` (warm/chunk/locale/model overrides), `%TEMP%\sober-stt.*` (phase/level/log/last transcript; the WAV is deleted after each dictation). The uninstaller asks whether to keep the models, and whether to remove the settings.
+
+## 🙏 Credits and third-party licenses
+
+MIT for this repo. The installer distributes third-party weights and binaries: Parakeet TDT v3 (NVIDIA, CC-BY-4.0), Qwen3 (Apache-2.0), llama.cpp and whisper.cpp builds (MIT), s1-mini (see its model card). Check each upstream for its terms.
 
 ## 📄 License
 
@@ -161,7 +228,7 @@ Ditada por voz push-to-talk para Windows. Toque duas vezes no **CapsLock** e seg
 
 ### 📦 Instalação
 
-Baixe o `SOBER-STT-Setup-*.exe` em Releases e execute. Escolha a pasta, o idioma (English / Português / Français / Español), marque ícone na Área de Trabalho / Menu Iniciar e **Iniciar com o Windows** se quiser; o assistente checa sua GPU (NVIDIA com 6+ GB de VRAM recomendado, avisa se for antiga/fraca/ausente), baixa os modelos e binários (lista com versões em `installer/downloads.json`, ~4,5 GB) e deixa pronto para ditar. Sem Node, AutoHotkey ou clone na máquina alvo.
+Baixe o `SOBER-STT-Setup-*.exe` em Releases e execute. Escolha a pasta, o idioma (English / Português / Français / Español), marque ícone na Área de Trabalho / Menu Iniciar e **Iniciar com o Windows** se quiser; o assistente checa sua GPU (NVIDIA com 6+ GB de VRAM recomendado, avisa se for antiga/fraca/ausente), baixa os modelos e binários (lista com versões em `installer/downloads.json`, ~5 GB de download, ~6 GB em disco) e deixa pronto para ditar. Sem Node, AutoHotkey ou clone na máquina alvo.
 
 ### 🚀 Início rápido (do código-fonte)
 

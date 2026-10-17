@@ -305,7 +305,10 @@ function dropHost(e) {
 
 function ensureHost() {
   if (hostProc) return hostReady;
-  hostProc = spawn(psBin(), ["-NoProfile", "-NonInteractive", "-File", REC_HOST], {
+  // Fresh Windows clients block .ps1 execution by default (Restricted policy),
+  // which killed the recorder host on first install. Bypass applies to this
+  // child process only; it changes nothing machine-wide.
+  hostProc = spawn(psBin(), ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", REC_HOST], {
     stdio: ["pipe", "pipe", "pipe"],
     windowsHide: true,
   });

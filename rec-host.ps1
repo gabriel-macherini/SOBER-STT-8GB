@@ -46,6 +46,14 @@ public class WaveRecHost {
     [DllImport("winmm.dll")] static extern uint waveInUnprepareHeader(IntPtr hwi, ref WAVEHDR pwh, uint cbwh);
     [DllImport("winmm.dll")] static extern uint waveInClose(IntPtr hwi);
     [DllImport("winmm.dll")] static extern uint waveInReset(IntPtr hwi);
+    [DllImport("winmm.dll")] static extern uint waveInGetNumDevs();
+
+    // The default input device can be missing entirely (USB mic unplugged, KVM
+    // switched to the other machine, endpoint disabled). waveInOpen(WAVE_MAPPER)
+    // then fails with 2 (MMSYSERR_BADDEVICEID) on the recorder thread *after*
+    // Start() already replied "ok", so a broken mic looked like a silent, empty
+    // dictation. Check up front so the runner can answer "no microphone".
+    public static uint NumDevices() { return waveInGetNumDevs(); }
 
     IntPtr hwi = IntPtr.Zero;
     FileStream fs;
@@ -174,6 +182,9 @@ while ($true) {
         "start" {
             if ([string]::IsNullOrEmpty($wav) -or [string]::IsNullOrEmpty($level)) {
                 [Console]::Out.WriteLine("err"); [Console]::Out.Flush(); continue
+            }
+            if ([WaveRecHost]::NumDevices() -eq 0) {
+                [Console]::Out.WriteLine("err no-mic"); [Console]::Out.Flush(); continue
             }
             if ($rec) { $rec.StopAndWait(1000); $rec = $null }
             $rec = [WaveRecHost]::new()

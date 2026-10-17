@@ -101,16 +101,31 @@ function loadModelOverrides() {
 }
 const MODEL_OVERRIDES = loadModelOverrides();
 
-// Loopback API auth: per-boot token so a web page can't drive the mic.
-// Written where the tray app can read it (state dir + tmpDir); the AHK
-// sends it as X-SOBER-Token on every request (a custom header forces a
-// CORS preflight, which a simple <form>/fetch from a page can't pass).
+// Loopback API auth: per-boot token so a web page can't drive the mic. The tray
+// app reads it from the state dir (or tmpDir) and sends it as X-SOBER-Token on
+// every request (a custom header forces a CORS preflight, which a simple
+// <form>/fetch from a page can't pass). The file is written only once the port
+// is ours and removed only when it still holds our token: a runner that lost
+// the bind race must never clobber (or delete) the token of the runner that
+// owns the port, or the tray would be locked out of a live runner.
 const TOKEN = crypto.randomBytes(24).toString("hex");
-for (const dir of new Set([OPTIONS.tmpDir, stateDir()])) {
-  try {
-    fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(path.join(dir, "sober-stt.token"), TOKEN);
-  } catch {}
+function tokenPaths() {
+  return [...new Set([OPTIONS.tmpDir, stateDir()])].map((dir) => path.join(dir, "sober-stt.token"));
+}
+function writeTokenFile() {
+  for (const p of tokenPaths()) {
+    try {
+      fs.mkdirSync(path.dirname(p), { recursive: true });
+      fs.writeFileSync(p, TOKEN);
+    } catch {}
+  }
+}
+function removeTokenFile() {
+  for (const p of tokenPaths()) {
+    try {
+      if (fs.readFileSync(p, "utf8") === TOKEN) fs.unlinkSync(p);
+    } catch {}
+  }
 }
 
 function activeModels() {
@@ -196,7 +211,8 @@ for (const m of ["log", "warn", "error"]) {
   console[m] = (...a) => {
     orig(...a);
     try {
-      fs.appendFileSync(LOG_PATH, a.map((x) => String(x)).join(" ") + "\n");
+      const ts = new Date().toISOString().slice(11, 23);
+      fs.appendFileSync(LOG_PATH, `${ts} ` + a.map((x) => String(x)).join(" ") + "\n");
     } catch {}
   };
 }
@@ -403,10 +419,20 @@ function pasteText(text, pid) {
   try {
     // U2: the user may have switched windows mid-pipeline; put the window
     // that was focused at /stop back on top before Ctrl+V (best effort).
-    const focus = Number(pid) > 0 ? `$w.AppActivate(${Number(pid)}); Start-Sleep -Milliseconds 150; ` : "";
+    const focus = Number(pid) > 0 ? `$null = (New-Object -ComObject WScript.Shell).AppActivate(${Number(pid)}); Start-Sleep -Milliseconds 150; ` : "";
+    // Ctrl+V by hand: WSH's SendKeys('^v') loses the Ctrl modifier on some
+    // machines and the target receives a literal "v", so inject the four events
+    // with keybd_event (VK_CONTROL 0x11, VK_V 0x56, KEYEVENTF_KEYUP 2) spaced by
+    // 60 ms. Add-Type is slow, so it runs after the window is back on top.
+    const ctrlV =
+      `Add-Type -Namespace SttKeys -Name Vk -MemberDefinition '[DllImport("user32.dll")] public static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, System.UIntPtr dwExtraInfo);'; ` +
+      `[SttKeys.Vk]::keybd_event(0x11,0,0,[UIntPtr]::Zero); Start-Sleep -Milliseconds 60; ` +
+      `[SttKeys.Vk]::keybd_event(0x56,0,0,[UIntPtr]::Zero); Start-Sleep -Milliseconds 60; ` +
+      `[SttKeys.Vk]::keybd_event(0x56,0,2,[UIntPtr]::Zero); Start-Sleep -Milliseconds 60; ` +
+      `[SttKeys.Vk]::keybd_event(0x11,0,2,[UIntPtr]::Zero)`;
     execFileSync(
       psBin(),
-      ["-NoProfile", "-NonInteractive", "-Command", `$w=New-Object -ComObject WScript.Shell; ${focus}$w.SendKeys('^v')`],
+      ["-NoProfile", "-NonInteractive", "-Command", `${focus}${ctrlV}`],
       { timeout: 8000 },
     );
   } catch {
@@ -435,6 +461,13 @@ async function runPipeline(seq, pid) {
   const done = (payload) => {
     RESULTS.set(seq, { seq, done: true, ...payload });
     if (RESULTS.size > 5) RESULTS.delete(RESULTS.keys().next().value);
+    // One line per dictation in %TEMP%/sober-stt.log: the cause of a failure
+    // (no-speech, STT error, paste failure) is what bug reports need.
+    logger.log(
+      "PIPE",
+      `seq=${seq} ok=${payload.ok} error=${payload.error || "-"} pasted=${payload.pasted ?? "-"} chars=${(payload.text || "").length}`,
+      "info",
+    );
     processing = false;
     writePhase("idle");
     stt.markSttIdle();
@@ -670,6 +703,7 @@ server.on("error", (e) => {
 });
 
 server.listen(PORT, "127.0.0.1", () => {
+  writeTokenFile(); // we own the port now, so this token is the live one
   console.log(`voice-runner listening on http://127.0.0.1:${PORT}`);
   // Warm the recorder host now so the first dictation doesn't pay the compile cost.
   writePhase("idle");
@@ -680,11 +714,7 @@ function shutdown() {
   clearIdle();
   stopWarmLoop();
   killServers();
-  for (const dir of new Set([OPTIONS.tmpDir, stateDir()])) {
-    try {
-      fs.unlinkSync(path.join(dir, "sober-stt.token"));
-    } catch {}
-  }
+  removeTokenFile();
   if (hostProc) {
     try {
       hostProc.stdin.write("quit\n");

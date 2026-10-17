@@ -1,5 +1,18 @@
 # Changelog — SOBER-STT
 
+## [1.0.4] - 2026-10-17
+
+([compare with 1.0.3](https://github.com/gabriel-macherini/SOBER-STT-8GB/compare/v1.0.3...v1.0.4))
+
+### Fixed
+- Pasting dropped the Ctrl modifier in some sessions: `pasteText` now sends raw `keybd_event` with 60 ms gaps instead of WSH `SendKeys("^v")`, which could deliver a bare `v` and paste nothing.
+- The tray treated any non-empty reply as success, so the runner's `403 {"ok":false,"error":"bad-token"}` (per-boot token, file deleted on shutdown, so a missing or stale file is normal after a reboot) looked like a started recording: the overlay flashed, nothing was recorded, nothing was pasted and no error was shown. API calls now check the status code, reload the token and retry once.
+- The tray read `sober-stt.token` only once, at startup, and only from the state dir; it now falls back to `%TEMP%\sober-stt.token` (the runner writes both) and re-reads on auth failure. A start that the runner refuses is now reported instead of flashing.
+- The tray can relink itself: if `/health` does not answer with a valid token it drops the process holding the API port and starts a fresh runner, instead of staying stuck on a runner it cannot authenticate against.
+
+### Changed
+- `%TEMP%\sober-stt.log` lines are timestamped, and every dictation logs one outcome line (`PIPE seq=… ok=… error=… pasted=… chars=…`), so "balloon flashed, nothing pasted" can be diagnosed from the log.
+
 ## [1.0.3] - 2026-10-16
 
 ([compare with 1.0.2](https://github.com/gabriel-macherini/SOBER-STT-8GB/compare/v1.0.2...v1.0.3))

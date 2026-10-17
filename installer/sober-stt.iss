@@ -8,7 +8,7 @@
 ; Build with:  pwsh tools/build-installer.ps1
 ; (regenerates generated-downloads.iss, then runs ISCC on this file)
 
-#define AppVersion "1.0.3"
+#define AppVersion "1.0.4"
 #define DistDir "..\dist\SOBER-STT"
 
 #include "generated-downloads-defs.iss"

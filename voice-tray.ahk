@@ -2,7 +2,7 @@
 #SingleInstance Force
 Persistent
 
-APPVER := "1.0.3"
+APPVER := "1.0.4"
 
 ; ============================================================================
 ; SOBER-STT - tray app
@@ -94,13 +94,31 @@ LOCALEF := STATE_DIR "\locale"
 CHUNKF := STATE_DIR "\chunk.state"   ; "0" = single-call mode (default: chunks on)
 global SOBER_TOKEN := ""
 TOKENF := STATE_DIR "\sober-stt.token" ; per-boot API token written by runner.mjs
+; The runner writes the per-boot token to the state dir AND tmpDir, and deletes
+; both on shutdown, so a missing, stale or wrong file is normal (a runner that
+; lost the bind race used to leave its own token behind). Both paths are
+; candidates; keep the first one the API actually accepts. Probes with TryHttp
+; on purpose: HttpSend would call back into LoadToken on 403.
 LoadToken() {
     global SOBER_TOKEN, TOKENF
-    try {
-        t := Trim(FileRead(TOKENF))
-        if (t != "")
+    for f in [TOKENF, A_Temp "\sober-stt.token"] {
+        try {
+            t := Trim(FileRead(f))
+            if (t = "")
+                continue
             SOBER_TOKEN := t
-    } catch {
+            if (InStr(TryHttp("GET", "/health", 1500, ""), '"ok":true')) {
+                ; Candidate from tmpDir: repair the state-dir copy, which is
+                ; where the next boot reads it from. A stale file there used to
+                ; lock the tray out of a live runner for good.
+                if (f != TOKENF) {
+                    try FileDelete(TOKENF)
+                    try FileAppend(t, TOKENF, "UTF-8")
+                }
+                return
+            }
+        } catch {
+        }
     }
 }
 global ActiveLang := "en"
@@ -295,32 +313,47 @@ UpdateOverlay(*) {
 }
 
 ; ---- HTTP ------------------------------------------------------------------
+; Every call carries the per-boot token. A 403 means "wrong token", never
+; success: the runner deletes the token file on shutdown and writes a new one on
+; start, so a stale or missing file is normal and must not be read as "the
+; runner is up". On 403 we reload the token and retry once; if the API still
+; refuses we return "" so callers can react instead of painting an overlay for a
+; recording that never started.
 HttpPost(path, timeoutMs := 5000, body := "") {
-    global SOBER_TOKEN
+    return HttpSend("POST", path, timeoutMs, body)
+}
+HttpGet(path, timeoutMs := 1500) {
+    return HttpSend("GET", path, timeoutMs, "")
+}
+HttpSend(method, path, timeoutMs, body) {
+    global LastHttpStatus
+    r := TryHttp(method, path, timeoutMs, body)
+    if (r = "" && LastHttpStatus = 403) {
+        LoadToken()
+        r := TryHttp(method, path, timeoutMs, body)
+        if (r = "" && LastHttpStatus = 403)
+            try TrayTip(T("msg.engine"), "SOBER-STT", "Icon!")
+    }
+    return r
+}
+TryHttp(method, path, timeoutMs, body) {
+    global SOBER_TOKEN, LastHttpStatus
+    LastHttpStatus := 0
     try {
         req := ComObject("WinHttp.WinHttpRequest.5.1")
         req.SetTimeouts(2000, 2000, 60000, timeoutMs)
-        req.Open("POST", "http://127.0.0.1:" . PORT . path, false)
+        req.Open(method, "http://127.0.0.1:" . PORT . path, false)
         if (SOBER_TOKEN != "")
             req.SetRequestHeader("X-SOBER-Token", SOBER_TOKEN)
         if (body != "")
             req.SetRequestHeader("Content-Type", "application/json")
-        req.Send(body)
-        return req.ResponseText
-    } catch {
-        return ""
-    }
-}
-
-HttpGet(path, timeoutMs := 1500) {
-    global SOBER_TOKEN
-    try {
-        req := ComObject("WinHttp.WinHttpRequest.5.1")
-        req.SetTimeouts(1000, 1000, 3000, timeoutMs)
-        req.Open("GET", "http://127.0.0.1:" . PORT . path, false)
-        if (SOBER_TOKEN != "")
-            req.SetRequestHeader("X-SOBER-Token", SOBER_TOKEN)
-        req.Send()
+        if (body = "")
+            req.Send()
+        else
+            req.Send(body)
+        LastHttpStatus := req.Status
+        if (req.Status != 200)
+            return ""
         return req.ResponseText
     } catch {
         return ""
@@ -329,11 +362,23 @@ HttpGet(path, timeoutMs := 1500) {
 
 DoStart() {
     Dbg("DoStart")
-    if (HttpPost("/start") = "") {
-        SetState("idle")
-    } else {
-        SetState("rec")
+    r := HttpPost("/start")
+    if (!InStr(r, '"ok":true')) {
+        if (r = "") {
+            ; No answer at all: the API is down or our token is stale (the token
+            ; rotates every boot). Relink once and retry.
+            EnsureRunner()
+            r := HttpPost("/start")
+        }
+        if (!InStr(r, '"ok":true')) {
+            ; The runner answered with a reason (no microphone, bad token, busy).
+            ; Say it instead of flashing an overlay for a start that never was.
+            SetState("idle")
+            try TrayTip(InStr(r, "no-mic") ? T("msg.nomic") : T("msg.fail"), "SOBER-STT", "Icon!")
+            return
+        }
     }
+    SetState("rec")
 }
 DoCancel() {
     Dbg("DoCancel")
@@ -345,7 +390,7 @@ DoPipeline() {
     ; repainting while phases change, and PollResult closes at the end.
     ; The focused window's PID goes along so the runner can put it back
     ; on top before pasting (U2).
-    global POLL_SEQ, POLL_N, POLL_PID
+    global POLL_SEQ, POLL_N, POLL_PID, POLL_EMPTY
     Dbg("DoPipeline")
     try {
         POLL_PID := WinGetPID("A")
@@ -357,16 +402,30 @@ DoPipeline() {
     if (RegExMatch(resp, '"seq"\s*:\s*(\d+)', &m)) {
         POLL_SEQ := Integer(m[1])
         POLL_N := 0
+        POLL_EMPTY := 0
         SetTimer(PollResult, 150)
     } else {
+        ; No seq: the runner never got the clip (token refused / not listening).
         SetState("idle")
     }
 }
 
 PollResult(*) {
-    global POLL_SEQ, POLL_N
+    global POLL_SEQ, POLL_N, POLL_EMPTY
     POLL_N += 1
     r := HttpGet("/result?seq=" . POLL_SEQ, 3000)
+    if (r = "") {
+        ; No answer at all (runner died mid-pipeline): don't poll for 3 min.
+        POLL_EMPTY += 1
+        if (POLL_EMPTY >= 8) {
+            SetTimer(PollResult, 0)
+            SetState("idle")
+            try TrayTip(T("msg.fail"), "SOBER-STT", "Icon!")
+            return
+        }
+    } else {
+        POLL_EMPTY := 0
+    }
     if (InStr(r, '"done":true')) {
         SetTimer(PollResult, 0)
         SetState("idle")
@@ -394,7 +453,7 @@ PollResult(*) {
 StartRunner() {
     global runnerPID
     LoadToken()
-    if (HttpGet("/health") != "") {
+    if (InStr(HttpGet("/health"), '"ok":true')) {
         runnerPID := 0
         return
     }
@@ -402,9 +461,42 @@ StartRunner() {
     Loop 40 {
         Sleep 200
         LoadToken()
-        if (HttpGet("/health") != "")
+        if (InStr(HttpGet("/health"), '"ok":true'))
             return
     }
+}
+
+; Guarantees a runner we can authenticate against. The token rotates every boot
+; and is deleted on shutdown, so when the tray starts with a missing or stale
+; file it must not adopt a runner it cannot talk to: re-read the token, and if
+; that still fails, drop whatever holds the port and start a runner we own.
+EnsureRunner() {
+    if (InStr(HttpGet("/health"), '"ok":true'))
+        return true
+    LoadToken()
+    if (InStr(HttpGet("/health"), '"ok":true'))
+        return true
+    KillRunnerOnPort()
+    StartRunner()
+    return InStr(HttpGet("/health"), '"ok":true') != ""
+}
+
+; Last resort: close the process listening on the API port (an orphan runner
+; whose token we cannot read), so a fresh one binds with a token we know.
+; netstat goes through a temp file: RunWait's captured output is unreliable here.
+KillRunnerOnPort() {
+    tmp := A_Temp . "\sober-stt.netstat"
+    try {
+        FileDelete(tmp)
+        RunWait(A_ComSpec . ' /c netstat -ano | findstr LISTENING > "' . tmp . '"', , "Hide")
+        for line in StrSplit(FileRead(tmp, "UTF-8"), "`n", "`r") {
+            ; <proto> <local:port> <foreign> <state> <pid>, space padded
+            if (RegExMatch(line, "^\s*TCP\s+\S*:" . PORT . "\s+\S+\s+LISTENING\s+(\d+)\s*$", &m))
+                try ProcessClose(Integer(m[1]))
+        }
+    } catch {
+    }
+    try FileDelete(tmp)
 }
 
 StopRunner() {
@@ -705,7 +797,7 @@ Esc:: {
 OnExit((*) => (StopRunner(), 0))
 try FileDelete(LOGF)
 Dbg("boot")
-StartRunner()
+EnsureRunner()
 RefreshTmpPaths()
 ; Restore persisted choices: warm toggle, UI language, autostart check.
 ; (Autostart itself lives in HKCU\...\Run; here we only re-check the menu.)

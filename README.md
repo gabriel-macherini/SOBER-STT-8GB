@@ -10,6 +10,8 @@ Push-to-talk voice dictation for Windows, tuned for an 8 GB VRAM card.
 
 Push-to-talk voice dictation for Windows. Double-tap and hold **CapsLock**, speak, release — your words are transcribed locally, cleaned up by a local LLM, and pasted into whatever window has focus. No cloud, no subscription, no typing.
 
+![Dictating into OpenCode: the overlay shows Recording with live mic bars while the text lands in the prompt](docs/media/dictation-overlay.gif)
+
 > 🇧🇷 Versão em português abaixo: [Português](#-sober-stt-em-português)
 
 ## ✨ Features
@@ -118,6 +120,8 @@ Gesture/overlay knobs still live at the top of `voice-tray.ahk`:
 | `VOICE_DEBUG` | `false` | Gesture log in `%TEMP%\sober-tray.log` |
 
 Tray menu: **Keep models loaded** + **Start with Windows** + **Split long texts (chunks)** (on by default, persisted in `%APPDATA%\SOBER-STT-8GB\chunk.state`), **Switch model**, **Open folder**, **Open temp folder**, **Copy last transcript**, **Help** (shows the app version), **Exit** — plus a **Language** submenu (English / Português / Français / Español, persisted in `%APPDATA%\SOBER-STT-8GB\locale`). All choices survive reboots. Labels shown here are English; the app follows the selected UI language.
+
+![The tray menu: toggles, Switch model and Language submenus, folder shortcuts, Exit](docs/media/tray-menu.gif)
 
 ### 🔀 Swapping models
 
@@ -250,6 +254,8 @@ Botão direito no ícone da bandeja → **Sair** para encerrar (libera a VRAM na
 Para uso normal, prefira o instalador acima. Do código-fonte, monte o toolchain antes: Windows 10/11 com Node 22+ e AutoHotkey v2, mais binários + modelos no layout do `config.json` (ou sobrescreva em `config.local.json`). Aí rode o `voice-tray.ahk`, dois toques + segurar o CapsLock, falar.
 
 Menu da bandeja: **Manter modelos carregados** + **Iniciar com o Windows** + **Dividir textos longos** (ligado por padrão), **Trocar modelo** (solte um `.gguf`/`.bin` em `models/` e selecione por função), **Abrir pasta**, **Abrir pasta temporária**, **Copiar última transcrição**, **Ajuda** (mostra a versão), **Sair** — mais o submenu **Idioma** (English / Português / Français / Español, lembrado entre reinicializações como os outros toggles).
+
+![O menu da bandeja: toggles, submenus Trocar modelo e Idioma, atalhos de pasta, Sair](docs/media/tray-menu.gif)
 
 ### 📄 Licença
 

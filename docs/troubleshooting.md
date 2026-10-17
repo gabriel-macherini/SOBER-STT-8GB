@@ -4,6 +4,7 @@
 |---|---|
 | SmartScreen blocks the installer | It is unsigned. More info, then Run anyway |
 | Nothing records | Settings > Privacy > Microphone: allow desktop apps. Check the Windows default input |
+| Dictation fails right after install, `%TEMP%\sober-stt.log` says "running scripts is disabled" | Fixed in 1.0.5. On older builds run `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` and restart the app |
 | AMD GPU | The bundled binaries are CUDA only. See the design note in [the README](../README.md#design) |
 | Port conflict | Change `runnerPort` in `config.json` or `config.local.json`, then check `/health` |
 | Text did not paste | Open `%TEMP%\sober-stt.last.json`: `raw` is what was heard, `text` what was pasted, `error` why it failed. The tray menu has Copy last transcript |

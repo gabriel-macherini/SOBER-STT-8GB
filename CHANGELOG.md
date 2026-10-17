@@ -1,5 +1,12 @@
 # Changelog — SOBER-STT
 
+## [1.0.5] - 2026-10-17
+
+([compare with 1.0.4](https://github.com/gabriel-macherini/SOBER-STT-8GB/compare/v1.0.4...v1.0.5))
+
+### Fixed
+- Dictation failed on fresh Windows installs whose default execution policy blocks scripts: the runner started the recorder host with `powershell -File rec-host.ps1`, the host died with `cannot be loaded because running scripts is disabled`, and every gesture ended in the generic "Dictation failed" balloon. The host now spawns with `-ExecutionPolicy Bypass`, which applies to that child process only; machines that already allowed scripts never noticed.
+
 ## [1.0.4] - 2026-10-17
 
 ([compare with 1.0.3](https://github.com/gabriel-macherini/SOBER-STT-8GB/compare/v1.0.3...v1.0.4))

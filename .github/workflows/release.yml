@@ -17,7 +17,22 @@ jobs:
           node-version: 22
       - run: npm test
       - run: npm run check
-      - run: choco install autohotkey innosetup -y
+      # Ahk2Exe is not inside the v2 zip (and the choco package layout is not
+      # stable), so assemble the standard install layout ourselves and point
+      # build-portable.ps1 at it with AHK_DIR.
+      - name: Install AutoHotkey v2 + Ahk2Exe
+        shell: pwsh
+        run: |
+          $ahkVer = "2.0.30"
+          $exe2Exe = "1.1.37.02a2"
+          $dir = Join-Path $env:RUNNER_TEMP "ahk"
+          New-Item -ItemType Directory -Force "$dir\v2", "$dir\Compiler" | Out-Null
+          Invoke-WebRequest "https://github.com/AutoHotkey/AutoHotkey/releases/download/v$ahkVer/AutoHotkey_$ahkVer.zip" -OutFile "$dir\v2.zip"
+          Expand-Archive "$dir\v2.zip" -DestinationPath "$dir\v2" -Force
+          Invoke-WebRequest "https://github.com/AutoHotkey/Ahk2Exe/releases/download/Ahk2Exe$exe2Exe/Ahk2Exe$exe2Exe.zip" -OutFile "$dir\ahk2exe.zip"
+          Expand-Archive "$dir\ahk2exe.zip" -DestinationPath "$dir\Compiler" -Force
+          "AHK_DIR=$dir" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+      - run: choco install innosetup -y
       - run: pwsh tools/build-portable.ps1
       - run: pwsh tools/build-installer.ps1
       - name: Publish release

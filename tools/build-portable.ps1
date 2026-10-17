@@ -3,6 +3,9 @@ param([switch]$NoNode)
 #
 #   pwsh tools/build-portable.ps1 [-NoNode]
 #
+# AutoHotkey is located automatically; set AHK_DIR to override (CI points it
+# at a freshly unpacked ahk-v2.zip + Ahk2Exe.exe).
+#
 # Output: dist/SOBER-STT/ with SOBER-STT.exe (compiled tray app, no AutoHotkey
 # needed on target), runner.mjs, lib/, rec-host.ps1, config.json, prompts/,
 # node/ (portable Node, skipped with -NoNode), and empty models/ + bin/ dirs
@@ -15,10 +18,32 @@ $NODE_VERSION = "v22.23.2"
 $NODE_ZIP_URL = "https://nodejs.org/dist/$NODE_VERSION/node-$NODE_VERSION-win-x64.zip"
 $CACHE = Join-Path $ROOT ".cache"
 
-$AHK2EXE = "C:\Program Files\AutoHotkey\Compiler\Ahk2Exe.exe"
-$AHK_BASE = "C:\Program Files\AutoHotkey\v2\AutoHotkey64.exe"
-if (!(Test-Path $AHK2EXE)) { throw "Ahk2Exe not found: $AHK2EXE (install AutoHotkey v2)" }
-if (!(Test-Path $AHK_BASE)) { throw "AHK base not found: $AHK_BASE" }
+# Ahk2Exe + the v2 base it compiles against. AHK_DIR (optional) points at a
+# folder laid out like the standard install: Compiler\Ahk2Exe.exe plus a v2
+# base (v2\AutoHotkey64.exe). Falls back to the usual install locations.
+function Find-Ahk {
+  $roots = @()
+  if ($env:AHK_DIR) { $roots += $env:AHK_DIR }
+  $roots += "$env:ProgramFiles\AutoHotkey"
+  if (${env:ProgramFiles(x86)}) { $roots += "${env:ProgramFiles(x86)}\AutoHotkey" }
+  if ($env:LOCALAPPDATA) { $roots += "$env:LOCALAPPDATA\Programs\AutoHotkey" }
+  if ($env:ChocolateyInstall) { $roots += "$env:ChocolateyInstall\lib\autohotkey.portable\tools" }
+  foreach ($root in $roots) {
+    if (!$root -or !(Test-Path $root)) { continue }
+    $compiler = @("$root\Compiler\Ahk2Exe.exe", "$root\Ahk2Exe.exe") | Where-Object { Test-Path $_ } | Select-Object -First 1
+    $base = @("$root\v2\AutoHotkey64.exe", "$root\AutoHotkey64.exe", "$root\AutoHotkey.exe") | Where-Object { Test-Path $_ } | Select-Object -First 1
+    if ($compiler -and $base) { return , @($compiler, $base) }
+  }
+  return $null
+}
+
+$ahk = Find-Ahk
+if (!$ahk) {
+  throw "AutoHotkey v2 not found. Install it, or set AHK_DIR to a folder holding Compiler\Ahk2Exe.exe and v2\AutoHotkey64.exe"
+}
+$AHK2EXE = $ahk[0]
+$AHK_BASE = $ahk[1]
+Write-Host "== ahk: $AHK2EXE / $AHK_BASE"
 
 Write-Host "== staging $DIST"
 Remove-Item -Recurse -Force $DIST -ErrorAction SilentlyContinue

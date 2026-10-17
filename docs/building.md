@@ -43,13 +43,28 @@ pwsh tools/build-installer.ps1  # dist/SOBER-STT-Setup-1.0.4.exe
 `build-portable.ps1` locates AutoHotkey on its own. Set `AHK_DIR` to a folder
 holding `Compiler\Ahk2Exe.exe` and `v2\AutoHotkey64.exe` to override that.
 
+## Line endings
+
+The whole tree is LF (`.gitattributes`: `* text=auto eol=lf`), and the installer
+copies `runner.mjs`, `rec-host.ps1`, `config.json`, `lib/` and `prompts/`
+verbatim. A Windows working tree with CRLF (`core.autocrlf=true`, the GitHub
+runner default) therefore ships files that do not match the repository, which is
+how 1.0.4 first shipped. `npm run check` fails when a shipped file comes out
+CRLF. After changing `.gitattributes`, refresh an existing clone with
+`git add --renormalize .` and `git checkout-index -a -f`: git considers a CRLF
+working tree clean under the new attribute and will not rewrite it on its own.
+
 ## Versions
 
 `version.txt` is the source of truth. `tools/check-version.mjs` fails when the
 installer `AppVersion`, the CHANGELOG header, the build example above, or the
-tray `APPVER` drift from it. Download versions and their SHA-256 pins live in
-`installer/downloads.json`, which the wizard lists verbatim; bump a version
-there and rebuild.
+tray `APPVER` drift from it. The compiled exe takes its Windows version resource
+from the `;@Ahk2Exe-Set*` directives at the top of `voice-tray.ahk`; the check
+also fails when `SetFileVersion` or `SetProductVersion` drift from `version.txt`.
+Without those directives Ahk2Exe stamps the AutoHotkey base version instead
+(`2.0.30`, which is what 1.0.4 used to report). Download versions and their
+SHA-256 pins live in `installer/downloads.json`, which the wizard lists verbatim;
+bump a version there and rebuild.
 
 ## Releasing
 

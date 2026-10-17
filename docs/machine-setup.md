@@ -1,8 +1,21 @@
 # Machine setup (performance reference)
 
 Everything outside this repo that affects speed or quality, in one place.
-Nothing here is a secret: no API keys, tokens, or credentials exist anywhere
-in this pipeline (all endpoints are `127.0.0.1`, auth-free).
+Nothing here is a secret: no API keys or credentials exist anywhere in this
+pipeline. Every endpoint is loopback, and the runner asks for a per-boot token
+that lives in `%TEMP%\sober-stt.token`.
+
+## The machine this was tuned on
+
+| Piece | What | Notes |
+|---|---|---|
+| OS | Windows 11, RTX 3070 8 GB, Ryzen 5 5600 | The VRAM policy is tuned for 8 GB |
+| Node | 22, on `PATH` | ESM, zero npm dependencies |
+| AutoHotkey | v2 (`AutoHotkey64.exe`) | Runs `voice-tray.ahk` |
+| Mic | Fifine Hub as the Windows default input | Native winmm through `rec-host.ps1`, because `sox -d` is broken on Win11 |
+| Transcriber | `bin\whisper\parakeet-cli.exe` (whisper.cpp CUDA build) plus `ggml-parakeet-tdt-0.6b-v3-q8_0.bin` (669 MB) | About 950 ms per dictation |
+| LLM servers | `bin\llama\llama-server.exe` plus `s1-mini` (484 MB, EN) and `Qwen3-4B` (2.5 GB, PT/FR) | Spawned on demand. Vendored from [opencode-voice](https://github.com/gabriel-macherini/opencode-voice) |
+| Pipeline code | `lib/`, vendored from opencode-voice, paths from `config.json` | STT and normalization logic live here |
 
 ## Audio input
 
@@ -40,6 +53,17 @@ This repo's policy on top: pre-warm **qwen only** at record start
 (s1 stays on demand — s1+qwen+Parakeet peaks would leave no 8 GB headroom),
 60 s idle kill when cold, persisted warm toggle otherwise.
 
+## Measured latencies (RTX 3070)
+
+Numbers from the machine above; yours will differ.
+
+| Step | Cold | Warm |
+|---|---|---|
+| Record start | ~80 ms | ~80 ms |
+| Transcribe | ~950 ms | ~950 ms |
+| Qwen normalize | ~1550 ms | ~95 ms |
+| s1 normalize | ~900 ms | ~65 ms |
+
 ## Deliberately NOT touched
 
 - **Defender exclusions** for models/binaries: would shave milliseconds off
@@ -54,5 +78,5 @@ This repo's policy on top: pre-warm **qwen only** at record start
 2. Run the installer (`dist/SOBER-STT-Setup-<version>.exe`, built by `pwsh tools/build-installer.ps1`; latest under [Releases](https://github.com/gabriel-macherini/SOBER-STT-8GB/releases/latest)) — models + CUDA binaries come from `installer/downloads.json`).
 3. Only for source runs: Node 22+, AutoHotkey v2, and a `config.local.json`
    with your paths (see `config.json`); never commit it.
-4. Match `parakeetThreads` to your core count; re-measure with the
-   table in [README](../README.md#measured-latencies-rtx-3070).
+4. Match `parakeetThreads` to your core count, then re-measure with the
+   table in [Measured latencies](#measured-latencies-rtx-3070).

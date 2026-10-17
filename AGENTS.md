@@ -44,7 +44,7 @@ Two processes, each simple:
   120 s timer (warm). Pre-warm qwen only; s1 stays on demand (VRAM headroom
   next to Parakeet's peak on 8 GB).
 - `version.txt` is the version source of truth; `tools/check-version.mjs`
-  enforces installer AppVersion == CHANGELOG == README example == `APPVER`.
+  enforces installer AppVersion == CHANGELOG == `docs/building.md` example == `APPVER`.
 - Overlay/label colors and gesture timings are constants at the top of
   `voice-tray.ahk`. `lib/` is vendored: don't hand-edit semantics, and keep
   `STT_SYSTEM_PROMPT` in sync with `prompts/stt-system-prompt.md`

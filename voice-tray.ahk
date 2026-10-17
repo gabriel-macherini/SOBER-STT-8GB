@@ -2,7 +2,7 @@
 #SingleInstance Force
 Persistent
 
-APPVER := "1.0.2"
+APPVER := "1.0.3"
 
 ; ============================================================================
 ; SOBER-STT - tray app

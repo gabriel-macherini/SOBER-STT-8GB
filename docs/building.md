@@ -37,7 +37,7 @@ Prerequisites: AutoHotkey v2 for Ahk2Exe, and Inno Setup 6
 
 ```powershell
 pwsh tools/build-portable.ps1   # dist/SOBER-STT: exe + portable Node + app files
-pwsh tools/build-installer.ps1  # dist/SOBER-STT-Setup-1.0.2.exe
+pwsh tools/build-installer.ps1  # dist/SOBER-STT-Setup-1.0.3.exe
 ```
 
 `build-portable.ps1` locates AutoHotkey on its own. Set `AHK_DIR` to a folder

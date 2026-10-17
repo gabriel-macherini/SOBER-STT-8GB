@@ -1,5 +1,22 @@
 # Changelog — SOBER-STT
 
+## [1.0.3] - 2026-10-16
+
+([compare with 1.0.2](https://github.com/gabriel-macherini/SOBER-STT-8GB/compare/v1.0.2...v1.0.3))
+
+### Added
+- Demo GIFs in the README: dictating with the live overlay, and the tray menu.
+- `README.pt-BR.md`, plus `docs/configuration.md`, `docs/api.md`, `docs/troubleshooting.md` and `docs/building.md`.
+
+### Changed
+- README is a first-time-user document: pitch, install, use, how it works, privacy, docs index. It states its focus up front (one gesture, plug and play, zero VRAM when idle, NVIDIA and CUDA only for now). Reference material moved into `docs/`, and the two languages are now two files instead of one.
+- Installer GPU warnings now say the bundled binaries are CUDA-only, instead of promising a CPU fallback the app does not implement.
+- `docs/machine-setup.md` absorbed the dev-machine table and the measured latencies, and no longer claims the API is auth-free (it needs the per-boot token).
+
+### Fixed
+- The release workflow locates Ahk2Exe instead of assuming the Chocolatey package layout, which is what broke the first 1.0.2 release build.
+- `tools/check-version.mjs` reads the build example from `docs/building.md`, where it now lives.
+
 ## [1.0.2] - 2026-10-16
 
 ([compare with 1.0.1](https://github.com/gabriel-macherini/SOBER-STT-8GB/compare/v1.0.1...v1.0.2))

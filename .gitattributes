@@ -1,3 +1,10 @@
+# The installer ships these files exactly as they sit on disk, so a Windows
+# checkout with core.autocrlf=true (the GitHub runner default) used to ship CRLF
+# text files and the installed copies stopped matching the repository. Pin LF for
+# the whole tree; git still treats binaries as binary. npm run check fails when a
+# shipped file comes out CRLF.
+* text=auto eol=lf
+
 # Keep the prompt comparison EOL-proof: the sync test compares against
 # STT_SYSTEM_PROMPT (\n), so this file always checks out with LF even when
 # core.autocrlf is true on Windows.

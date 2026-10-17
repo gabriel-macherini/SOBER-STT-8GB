@@ -4,6 +4,15 @@ Persistent
 
 APPVER := "1.0.4"
 
+; Version resource for the compiled exe. Keep these in step with APPVER: version.txt
+; is the source of truth and npm run check fails on drift. Without them Ahk2Exe
+; stamps the AutoHotkey base version, so Windows file properties reported 2.0.30.
+;@Ahk2Exe-SetProductName SOBER-STT
+;@Ahk2Exe-SetDescription SOBER-STT (local dictation)
+;@Ahk2Exe-SetFileVersion 1.0.4
+;@Ahk2Exe-SetProductVersion 1.0.4
+;@Ahk2Exe-SetCopyright (c) 2026 Gabriel Macherini
+
 ; ============================================================================
 ; SOBER-STT - tray app
 ;

@@ -9,6 +9,8 @@
 - The tray treated any non-empty reply as success, so the runner's `403 {"ok":false,"error":"bad-token"}` (per-boot token, file deleted on shutdown, so a missing or stale file is normal after a reboot) looked like a started recording: the overlay flashed, nothing was recorded, nothing was pasted and no error was shown. API calls now check the status code, reload the token and retry once.
 - The tray read `sober-stt.token` only once, at startup, and only from the state dir; it now falls back to `%TEMP%\sober-stt.token` (the runner writes both) and re-reads on auth failure. A start that the runner refuses is now reported instead of flashing.
 - The tray can relink itself: if `/health` does not answer with a valid token it drops the process holding the API port and starts a fresh runner, instead of staying stuck on a runner it cannot authenticate against.
+- The installed app now matches the repository byte for byte. A Windows build machine with `core.autocrlf=true` (the GitHub runner default) checked out CRLF text files, and the installer ships them as they are, so `runner.mjs`, `rec-host.ps1`, `config.json`, `lib/` and `prompts/` differed from the source. `.gitattributes` pins LF for the tree and `npm run check` fails if a shipped file comes out CRLF.
+- `SOBER-STT.exe` now stamps its own version resource. Windows file properties used to report the AutoHotkey base version (`2.0.30`) instead of the app version, because nothing overrode Ahk2Exe's default.
 
 ### Changed
 - `%TEMP%\sober-stt.log` lines are timestamped, and every dictation logs one outcome line (`PIPE seq=… ok=… error=… pasted=… chars=…`), so "balloon flashed, nothing pasted" can be diagnosed from the log.
